@@ -52,7 +52,7 @@ public class Client implements Runnable{
         //msg.setSenderID();
         msg.setReceiverID(userID);
         //msg.setTime();                      //?
-        Socket socket = new Socket("localhost", 8800);               //initializing socket
+        Socket socket = new Socket("localhost", CLIENT_PORT);               //initializing socket
         
         OutputStream output = socket.getOutputStream();
         
@@ -67,20 +67,31 @@ public class Client implements Runnable{
     }
 
     // 当某个用户不在线的时候，将一条消息发送给Server
-    private void sendMsgToS(Message msg,int userId){
+    private void sendMsgToS(Message msg){
         /*
-            need server ip, port
-            Same steps, just (probably) different ip and port
+            server will listen at the same port
             
-            can't do this yet since server class is not implemented
+            
         */
+        Socket socket = new Socket("localhost", CLIENT_PORT);                   //don't know ip and port
+        OutputStream output = socket.getOutputStream();
         
+        msg.writeMsg(msg, output);              //?
+        
+        ObjectOutputStream o_output = new ObjectOutputStream(output);
+        objectOutputStream.writeObject(msg);
+      
+        socket.close();
         
     }
 
     // 我们需要反序列化出对应的Message
     public Message recvMsg(){
         
+        Socket socket = new Socket("localhost", CLIENT_PORT);                   //don't know ip and port
+        ObjectInputStream input = newObjectInputStream(socket.getInputStream());
+        Message rMsg = (Message) input.readObject();
+        socket.close();
         
     }
 }
