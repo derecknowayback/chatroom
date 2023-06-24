@@ -1,6 +1,8 @@
 package net;
 
 import dto.User;
+
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
@@ -31,8 +33,40 @@ public class Client implements Runnable {
     private boolean isLogin;
     private String loginFailedMsg;
 
+    /*存储好友消息的磁盘上的文件名*/
+    static final String friendRecordDocumentName = System.getProperty("user.dir") + "\\"+ "friend_record";
+
 
     DatagramSocket socket;
+
+    /*将磁盘文件读取到friends集合*/
+    public void readFriendRecord () throws IOException {
+        File friendFile = new File(friendRecordDocumentName);
+        if (!friendFile.exists()) {
+            friendFile.createNewFile();
+        }
+        RandomAccessFile raf = new RandomAccessFile(friendFile, "rw");
+        int num = raf.readInt();
+        for (int i = 0; i < num; i++) {
+            friends.add(raf.readInt());
+        }
+        raf.close();
+    }
+
+    /*将friends信息写入磁盘文件*/
+    public void writeFriendRecord () throws IOException {
+        File friendFile = new File(friendRecordDocumentName);
+        if (!friendFile.exists()) {
+            friendFile.createNewFile();
+        }
+        RandomAccessFile raf = new RandomAccessFile(friendFile, "rw");
+        raf.writeInt(this.friends.size());
+        for (Integer friend : friends) {
+            raf.writeInt(friend);
+        }
+        raf.close();
+    }
+
 
     public void getServerAddrByConfig() throws IOException {
         RandomAccessFile file = new RandomAccessFile("serverip.txt","r");
