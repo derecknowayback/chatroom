@@ -1,14 +1,16 @@
 package ui;
 
+import dto.User;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.net.SocketException;
 import java.util.HashMap;
+import java.util.List;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -24,27 +26,32 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
+import msg.ClientChatRecord;
+import msg.Message;
+import net.Client;
+import net.Proto;
 
-public class ClientUi {
+public class ClientUi implements Runnable{
 
-    public static void main(String[] args) throws InterruptedException {
-        ClientUi xx = new ClientUi("xx");
-		xx.leftPanel.setLayout(null);
-		xx.leftPanel.setPreferredSize(new Dimension(200,2000));
-		int k = 0, preY = 0;
-		while (k < 12) {
-			String name = k+ "";
-			System.out.println(name);
-				MyBut but = new MyBut(name);
-				but.setBounds(0, preY , 180, 50);
-				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
-				but.setForeground(Color.GREEN);
-				xx.leftPanel.add(but);
-				preY += 51;
-				map.put(name,k);
-				k++;
-			Thread.sleep(1000);
-		}
+
+    public static void main(String[] args) throws SocketException, InterruptedException {
+//		Client cli = new Client();
+//		cli.setSelf(new User("ccc","11"));
+//		ClientUi ui = new ClientUi(cli);
+//		int k = 0, preY = 0;
+//		while (k < 12) {
+//			String name = k+ "";
+//			System.out.println(name);
+//				MyBut but = new MyBut(name);
+//				but.setBounds(0, preY , 180, 50);
+//				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+//				but.setForeground(Color.GREEN);
+//				ui.leftPanel.add(but);
+//				preY += 51;
+////				map.put(name,k);
+//				k++;
+//			Thread.sleep(1000);
+//		}
     }
 
 	/**
@@ -71,25 +78,53 @@ public class ClientUi {
 	private DefaultListModel<MyBut> listModel;
 	private JList<MyBut> userList;
 
-	static private HashMap<String,Integer> map = new HashMap<>();
-
-	private String name;
+	static private HashMap<String,MyBut> map = new HashMap<>();
 
 	private JPanel leftPanel = new JPanel();
 
-	static class MyBut extends JButton{
+	private User user;
+	private Client client;
+
+	private HashMap<String,ClientChatRecord> chatRecordMap;
+
+	private String talkingTo;
+
+	@Override
+	public void run() {
+		while (true) {
+			// todo 刷新用户列表
+
+		}
+	}
+
+	class MyBut extends JButton {
 
 		public MyBut(String text) {
 			super(text);
 			addActionListener(a -> {
-//				System.out.println();
-				int id = map.get(super.getText());
+				talkingTo = text;
 				Document docs = text_show.getDocument();
 				try {
 					docs.remove(0, docs.getLength());
-					docs.insertString(0, "This is a message from"+id+"\n", attrset);// 对文本进行追加
+					ClientChatRecord record = chatRecordMap.get(text);
+					if (record == null) {
+						record = new ClientChatRecord(client.getUserIdByName(text));
+					}
+					chatRecordMap.put(text,record);
+					List<Message> messages = record.getMessages();
+					int offset = 0;
+					for (Message msg : messages) {
+						String toDisplay = msg.toDisplay();
+						if (msg.getSenderId() == client.getSelfId()) {
+							// todo 如果是自己的话，移到右边
+						}
+						docs.insertString(offset, toDisplay , attrset);// 对文本进行追加
+						offset += toDisplay.length();
+					}
 				} catch (BadLocationException e) {
 					e.printStackTrace();
+				} catch (IOException e) {
+					System.out.println("Error on new ClientChatRecord: " + e);
 				}
 			});
 		}
@@ -102,15 +137,17 @@ public class ClientUi {
 
 
 	// 构造方法
-	public ClientUi(String n) {
+	public ClientUi(Client client) {
+		this.user = client.getSelf();
+		this.client = client;
+		this.chatRecordMap = new HashMap<>();
 
-		this.name = n;
-		frame = new JFrame(name);
+		frame = new JFrame(user.getName());
 		frame.setVisible(true); // 可见
 		frame.setBackground(Color.PINK);
 		frame.setResizable(false); // 大小不可变
 
-		info_name = new JLabel(name);
+		info_name = new JLabel(user.getName());
 		text_show = new JTextPane();
 		text_show.setEditable(false);
 		attrset = new SimpleAttributeSet();
@@ -155,18 +192,15 @@ public class ClientUi {
 		leftScroll.setBorder(info_d);
 
 
-
 		southPanel = new JPanel(new BorderLayout());
 		southPanel.setLayout(null);
 		txt_msg.setBounds(0, 0, 500, 100);
-		txt_msg.setBackground(Color.pink);
+		txt_msg.setBackground(Color.PINK);
 		btn_send.setBounds(501, 0, 80, 100);
 		btn_send.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
 		btn_send.setForeground(Color.GREEN);
 		southPanel.add(txt_msg);
 		southPanel.add(btn_send);
-
-
 
 		centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftScroll, rightScroll);
 		centerSplit.setDividerLocation(200);
@@ -183,54 +217,26 @@ public class ClientUi {
 		int screen_width = Toolkit.getDefaultToolkit().getScreenSize().width;
 		int screen_height = Toolkit.getDefaultToolkit().getScreenSize().height;
 		frame.setLocation((screen_width - frame.getWidth()) / 2, (screen_height - frame.getHeight()) / 2);
-
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
 
-
-		// txt_msg回车键时事件
-		txt_msg.addActionListener(arg0 -> {
-
-		});
-
 		// btn_send单击发送按钮时事件
-		btn_send.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
+		btn_send.addActionListener(e -> {
+			// todo 检查是不是好友
 
+			String text = txt_msg.getText();
+			int userId = client.getUserIdByName(talkingTo);
+			Proto message = Proto.getNewMessage(text);
+			try {
+				client.sendMsgToP(message.toString(),userId);
+			} catch (IOException ex) {
+				System.out.println("发送消息失败: " + ex);
 			}
-
 		});
 
 
-
-
-
-		// 关闭窗口时事件
-//		frame.addWindowListener(new WindowAdapter() {
-//			public void windowClosing(WindowEvent e) {
-//				if (isConnected) {
-//					try {
-//						// 断开连接
-//						boolean flag = false;
-//						if (flag == false) {
-//							throw new Exception("断开连接发生异常！");
-//						} else {
-//							JOptionPane.showMessageDialog(frame, "成功断开!");
-//							txt_msg.setEnabled(false);
-//							btn_send.setEnabled(false);
-//						}
-//					} catch (Exception e4) {
-//						JOptionPane.showMessageDialog(frame, "断开连接服务器异常：" + e4.getMessage(), "错误",
-//								JOptionPane.ERROR_MESSAGE);
-//					}
-//				} else if (!isConnected) {
-//					txt_msg.setEnabled(true);
-//					btn_send.setEnabled(true);
-//				}
-//			}
-//		});
+		leftPanel.setLayout(null);
+		leftPanel.setPreferredSize(new Dimension(200,2000));
 	}
-
-
 
 }

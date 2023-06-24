@@ -13,22 +13,22 @@ public class LoginStatus {
 
     // 用户登录的时候，添加一条映射
     public static void addUser(int userId,InetAddress inetAddress){
-        // TODO :
+        userId2Ipaddr.put(userId,inetAddress);
     }
 
     // 用户下线后，移除映射
     public static void removeUser(int userId){
-        // TODO :
+        userId2Ipaddr.remove(userId);
     }
 
     // 根据userId获取用户的ip地址，如果没有登录或者没有用户返回null
     public static InetAddress getIP(int userId){
-        // TODO :
+       return userId2Ipaddr.getOrDefault(userId,null);
     }
 
     // 返回某个用户是否登录
     public static boolean isOnline(int userId){
-        // TODO :
+        return userId2Ipaddr.containsKey(userId);
     }
 
 }

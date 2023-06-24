@@ -7,4 +7,6 @@ public abstract class ChatRecord {
     public abstract void writeRecord();
 
     public abstract List<Message> getMessages();
+
+    public abstract void addMessages(Message message);
 }

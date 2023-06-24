@@ -1,19 +1,12 @@
 package msg;
 
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 
 /**
  *  Message 一条消息
  */
 public class Message implements Serializable {
-
-    public static final byte[] globalIdLock = new byte[0];
-    public static int globalId = 0;
-
-    private int id; // 消息的id，对于一个Client自己来说是全局唯一的
 
     private int senderId; // 发送人的id
     private int receiverId; // 接收者的id
@@ -21,15 +14,11 @@ public class Message implements Serializable {
 
     private String time; // 消息发送的时间
 
-    public Message(int senderId, int receiverId, String content,String time) {
+    public Message(int senderId, int receiverId, String content, String time) {
         this.senderId = senderId;
         this.receiverId = receiverId;
         this.content = content;
         this.time = time;
-        synchronized (globalIdLock) {
-            globalId ++;
-            this.id = globalId;
-        }
     }
 
     public String getTime() {
@@ -66,13 +55,35 @@ public class Message implements Serializable {
 
 
     // 将一条消息写入到指定文件中
-    public static void writeMsg(Message msg, OutputStream outputStream){
-        // TODO: 俞李文澜
+    public static void writeMsg(Message msg, ObjectOutputStream outputStream) {
+        try {
+            outputStream.writeObject(msg);
+            outputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    // 从指定文件中读出一条消息
-    public static Message readMsg(InputStream inputStream){
-        // TODO: 俞李文澜
+    public static Message readMsg(ObjectInputStream inputStream) {
+        try {
+            return (Message) inputStream.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "Message{" +
+            "senderId=" + senderId +
+            ", receiverId=" + receiverId +
+            ", content='" + content + '\'' +
+            ", time='" + time + '\'' +
+            '}';
+    }
+
+    public String toDisplay () {
+        return senderId + "  " + time + "\n" + content + "\n";
     }
 
 }

@@ -1,5 +1,6 @@
 package ui;
 
+import dto.User;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -8,6 +9,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.io.IOException;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -15,28 +17,44 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
+import net.Client;
+import net.Proto;
 
 public class LoginUi extends JFrame {
-    /**
-     *
-     */
+
     private static final long serialVersionUID = -6256528270698337060L;
     private JTextField userName; // 用户名
     private JPasswordField password; // 密码
     private JLabel lableUser;
     private JLabel lablePwd;
+
+    private JLabel labelError;
+
     private JButton btnLogin; // 按钮
     private JButton btnRegister;
     private int wx, wy;
     private boolean isDraging = false;
     private JPanel contentPane;
 
+    private Client client;
+
     public static void main(String[] args) {
         LoginUi frame = new LoginUi();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
     }
 
-    public LoginUi() {
+    public LoginUi()  {
+        try {
+            client = new Client();
+            client.getServerAddrByConfig();
+        } catch (Exception e) {
+            System.out.println("Client init failed: " + e);
+            System.exit(-1);
+        }
+
+        Thread clientThread = new Thread(client);
+        clientThread.start();
 
         // 设置无标题栏
         setUndecorated(true);
@@ -53,8 +71,6 @@ public class LoginUi extends JFrame {
                 isDraging = false;
             }
         });
-
-
         addMouseMotionListener(new MouseMotionAdapter() {
             public void mouseDragged(MouseEvent e) {
                 if (isDraging) {
@@ -65,18 +81,18 @@ public class LoginUi extends JFrame {
             }
         });
 
-        setBounds(100, 100, 439, 369);
+        setBounds(100, 100, 479, 469);
         setLocationRelativeTo(null);
         contentPane = new JPanel();
-        contentPane.setBackground(Color.PINK);
+        contentPane.setBackground(Color.ORANGE);
         contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
         setResizable(false);
         setContentPane(contentPane);
         contentPane.setLayout(null);
 
-        //
+
         btnLogin = new JButton("登录");
-        btnLogin.setBounds(225, 285, 170, 40);
+        btnLogin.setBounds(225, 305, 170, 40);
         btnLogin.setBackground(new Color(0xdedef));
         btnLogin.setForeground(Color.WHITE);
         btnLogin.setBorder(null);
@@ -88,15 +104,40 @@ public class LoginUi extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 String name = userName.getText();
                 String pwd = String.valueOf(password.getPassword());
+                // 发请求，验证登录
+                User user = new User(name, pwd);
+                Proto askForLogin = Proto.getAskForLogin(user.toString());
+                try {
+                    client.sendMsgToS(askForLogin.toString());
+                } catch (IOException ex) {
+                    System.out.println("ask for login failed ...");
+                }
+                while (!client.getIsLogin()) {
+                    try {
+                        // 等待server的响应
+                        client.wait();
+                        // 查看结果
+                        String errMsg = client.getLoginFailedMsg();
+                        if (errMsg != null) {
+                            labelError.setText(errMsg);
+                            break;
+                        }
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                if (client.getIsLogin()) {
+                    dispose();
+                    ClientUi ui = new ClientUi(client);
 
-
+                }
             }
         });
 
 
         //
         btnRegister = new JButton("注册");
-        btnRegister.setBounds(37, 285, 170, 40);
+        btnRegister.setBounds(37, 305, 170, 40);
         btnRegister.setFocusPainted(false);
         btnRegister.setBackground(new Color(0xF804));
         btnRegister.setForeground(Color.WHITE);
@@ -106,13 +147,43 @@ public class LoginUi extends JFrame {
         contentPane.add(btnRegister);
         btnRegister.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-
+                // 发请求 申请注册
+                String name = userName.getText();
+                String pwd = String.valueOf(password.getPassword());
+                // 发请求，验证登录
+                User user = new User(name, pwd);
+                Proto askForRegister = Proto.getAskForRegister(user.toString());
+                try {
+                    client.sendMsgToS(askForRegister.toString());
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+                while (!client.getIsLogin()) {
+                    try {
+                        // 等待server的响应
+                        client.wait();
+                        // 查看结果
+                        String errMsg = client.getLoginFailedMsg();
+                        if (errMsg != null) {
+                            labelError.setText(errMsg);
+                            break;
+                        }
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                if (client.getIsLogin()) {
+                    dispose();
+                    ClientUi ui = new ClientUi(client);
+                    Thread clientThread = new Thread(ui);
+                    clientThread.start();
+                }
             }
         });
 
 
 
-        // // 用户号码登录输入框
+        // 用户号码登录输入框
         userName = new JTextField();
         userName.setBounds(170, 167, 219, 35);
         userName.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 25));
@@ -137,14 +208,20 @@ public class LoginUi extends JFrame {
         lablePwd.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 25));
         lablePwd.setForeground(Color.WHITE);
         contentPane.add(lablePwd);
-        //
+
+
+        // 错误消息调试
+        labelError = new JLabel();
+        labelError.setBounds(37,265,250,27);
+        labelError.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+        labelError.setForeground(Color.RED);
+        contentPane.add(labelError);
 
         JLabel lblv = new JLabel("Welcome");
-        lblv.setForeground(Color.WHITE);
-        lblv.setBackground(Color.WHITE);
+        lblv.setForeground(Color.BLUE);
+        lblv.setBackground(Color.BLUE);
         lblv.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 58));
         lblv.setBounds(37, 60, 357, 80);
         contentPane.add(lblv);
-
     }
 }
