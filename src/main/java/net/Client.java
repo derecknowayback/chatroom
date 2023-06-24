@@ -7,6 +7,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,16 +86,40 @@ public class Client implements Runnable {
             }
 
             // 对包进行分类
+            // type部分和message部分用‘,’分隔
             byte[] data = packet.getData();
             int length = packet.getLength();
-            String reply = new String(data, 0, length);
+            String[] dataString = data.toString().split(",", 2);
+            String typeString = dataString[0];
+            String messageData = dataString[1];
 
             // 接下来开始解析: type + content
-            int type = 0;
+            int type = Integer.parseInt(typeString);
             switch (type) {
-                case  Proto.RespForSaveMsg : {
-                    String msg = ...;
+                case Proto.RespForAllUsers: {
+                    String messageString = new String(messageData);
+                    String[] blocks = messageString.split("\\|");
+                    for (String block : blocks) {
+                        String index[] = block.split(",");
+                        User user = new User(Integer.parseInt(index[0]), index[1], Boolean.parseBoolean(index[2]));
+                        allUsers.put(index[1], user);
+                    }
+                }
+                case Proto.RespForSaveMsg : {
+                    String messageString = new String(messageData);
                     // do nothing
+                }
+                case Proto.RespForLogin: {
+                    //boolean和string之间用‘,’分隔
+                    String responseData;
+                    String index[] = messageData.split(",");
+                    boolean isLogin = Boolean.parseBoolean(index[0]);;
+                    if (!isLogin) {
+                        responseData = index[1];
+                    }
+                }
+                case Proto.SendForMsg: {
+
                 }
 
             }
