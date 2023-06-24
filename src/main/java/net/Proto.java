@@ -6,6 +6,9 @@ public class Proto {
 
     private String message;
 
+    // 4字节type + 数据
+
+
     // 客户端请求服务端
     public static final int AskForAllUsers = 1;
     public static final int AskForSaveMsg= 2;
@@ -16,10 +19,12 @@ public class Proto {
     public static final int SynMsg = 100;
 
     // 服务端响应客户端
-    public static final int RespForAllUsers = 5;
+    public static final int RespForAllUsers = 5; //
     public static final int RespForSaveMsg = 6;
 
     public static final int RespForLogin = 7;
+    // 数据 : 一个boolean + 一个string ，如果boolean是true，string null
+    // 数据 : 一个boolean + 一个string ，如果boolean是false，string 不是null
 
     public static final int SendForMsg = 1012;
 

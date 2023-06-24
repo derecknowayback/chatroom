@@ -90,9 +90,14 @@ public class Client implements Runnable {
             String reply = new String(data, 0, length);
 
             // 接下来开始解析: type + content
+            int type = 0;
+            switch (type) {
+                case  Proto.RespForSaveMsg : {
+                    String msg = ...;
+                    // do nothing
+                }
 
-
-
+            }
 
 
             // 定期获取在线用户
