@@ -1,6 +1,4 @@
-package com.jdbc;
-
-import com.pojo.User;
+package com.main/java.dto;
 
 import java.io.FileReader;
 import java.io.IOException;
