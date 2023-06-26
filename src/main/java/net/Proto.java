@@ -35,7 +35,26 @@ public class Proto {
 
     public static final int NewMessage = 10;
 
+    //群聊
+    
+    //创建群聊
+    public static final int AskForNewGroup = 11;
+    public static final int RespForNewGroup = 12;
 
+    //加入群聊
+    public static final int AskToJoin = 13;
+    public static final int RespToJoin = 14;
+
+    //离开群聊
+    public static final int NotifyToLeave = 15;
+    public static final int RespToLeave = 16;
+    
+    //发送群消息
+    public static final int NewGroupMessage = 17;
+    public static final int RecvGroupMessage = 18;
+
+
+    
     // 请求所有用户
     public static Proto getAskForAllUsers( ) {
         Proto proto = new Proto("");
@@ -91,6 +110,36 @@ public class Proto {
         return proto;
     }
 
+//群聊proto(无resp部分):
+    public static proto getAskForNewGroup(String message){
+    //message: user info + friend list + group name limit level
+        Proto p = new Proto(message);
+        p.type = AskForNewGroup;
+        return p;
+    }
+    public static proto getAskToJoin(String message){
+    //message: join_user info + group id
+        Proto p = new Proto(message);
+        p.type = AskToJoin;
+        return p;
+    }
+
+    public static proto getNotifyToLeave(String message){
+    //message: user info + group id
+        Proto p = new Proto(message);
+        p.type = NotifyToLeave;
+        return p;
+    }
+
+    public static proto getNewGroupMessage(String message){
+    //message: user info + content
+        Proto p = new Proto(message);
+        p.type = NewGroupMessage;
+        return p;
+    }
+
+
+    
     private Proto(String message) {
         this.message = message;
     }
