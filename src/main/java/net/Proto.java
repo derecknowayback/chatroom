@@ -19,42 +19,50 @@ public class Proto {
     public static final int SynMsg = 100;
 
     // 服务端响应客户端
-    public static final int RespForAllUsers = 5; //
-    public static final int RespForSaveMsg = 6;
+    public static final int RespForAllUsers = 5; // user | user | ...
+    public static final int RespForSaveMsg = 6; //
 
     public static final int RespForLogin = 7;
     // 数据 : 一个boolean + 一个string ，如果boolean是true，string null
     // 数据 : 一个boolean + 一个string ，如果boolean是false，string 不是null
 
-    public static final int SendForMsg = 1012;
+    public static final int SendForMsg = 1012; // 服务端向客户端发送积压的消息, msg | msg | msg
 
     // 客户端和客户端发消息
-    public static final int AskForMakeFriend = 8;
+    public static final int AskForMakeFriend = 8; //
 
     public static final int RespForMakeFriend = 9;
 
     public static final int NewMessage = 10;
 
     //群聊
-    
+
     //创建群聊
     public static final int AskForNewGroup = 11;
     public static final int RespForNewGroup = 12;
 
     //加入群聊
-    public static final int AskToJoin = 13;
+    public static final int AskToJoinGroup = 13;
     public static final int RespToJoin = 14;
 
     //离开群聊
-    public static final int NotifyToLeave = 15;
+    public static final int AskToLeave = 15;
     public static final int RespToLeave = 16;
-    
+
     //发送群消息
     public static final int NewGroupMessage = 17;
     public static final int RecvGroupMessage = 18;
 
 
-    
+    public static final int BacklogMsg = 19;
+
+
+    public static Proto getSendForMsg (String message) {
+        Proto proto = new Proto(message);
+        proto.type = SendForMsg;
+        return proto;
+    }
+
     // 请求所有用户
     public static Proto getAskForAllUsers( ) {
         Proto proto = new Proto("");
@@ -110,36 +118,48 @@ public class Proto {
         return proto;
     }
 
+    public static Proto getRespForLogin (String errMsg) {
+        if (errMsg == null) {
+
+        }
+        Proto proto = new Proto(errMsg);
+
+    }
+
 //群聊proto(无resp部分):
-    public static proto getAskForNewGroup(String message){
+    public static Proto getAskForNewGroup(String message){
     //message: user info + friend list + group name limit level
         Proto p = new Proto(message);
         p.type = AskForNewGroup;
         return p;
     }
-    public static proto getAskToJoin(String message){
+    public static Proto getAskToJoin(String message){
     //message: join_user info + group id
         Proto p = new Proto(message);
-        p.type = AskToJoin;
+        p.type = AskToJoinGroup;
         return p;
     }
 
-    public static proto getNotifyToLeave(String message){
+    public static Proto getNotifyToLeave(String message){
     //message: user info + group id
         Proto p = new Proto(message);
-        p.type = NotifyToLeave;
+        p.type = AskToLeave;
         return p;
     }
 
-    public static proto getNewGroupMessage(String message){
+    public static Proto getNewGroupMessage(String message){
     //message: user info + content
         Proto p = new Proto(message);
         p.type = NewGroupMessage;
         return p;
     }
 
+    public static Proto getBacklogMsg (String message) {
+        Proto p = new Proto(message);
+        p.type = BacklogMsg;
+        return p;
+    }
 
-    
     private Proto(String message) {
         this.message = message;
     }

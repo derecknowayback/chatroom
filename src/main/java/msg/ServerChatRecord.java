@@ -63,4 +63,16 @@ public class ServerChatRecord extends ChatRecord {
     public void addMessages(Message message) {
         messages.add(message);
     }
+
+    public List<Message> getAllMsgByUserId (int receiverId) {
+        List<Message> res = new ArrayList<>();
+        for (Message msg : messages) {
+            if (msg.getReceiverId() == receiverId) {
+                res.add(msg);
+            }
+        }
+        messages.removeAll(res);
+        return res;
+    }
+
 }

@@ -10,7 +10,6 @@ import java.awt.Toolkit;
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.HashMap;
-import java.util.List;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -27,7 +26,6 @@ import javax.swing.text.Document;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import msg.ClientChatRecord;
-import msg.Message;
 import net.Client;
 import net.Proto;
 
@@ -38,21 +36,9 @@ public class ClientUi implements Runnable{
 		Client cli = new Client();
 		cli.setSelf(new User("ccc","11"));
 		ClientUi ui = new ClientUi(cli);
-//		int k = 0, preY = 0;
-//		while (k < 12) {
-//			String name = k+ "";
-//			System.out.println(name);
-//				MyBut but = new MyBut(name);
-//				but.setBounds(0, preY , 180, 50);
-//				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
-//				but.setForeground(Color.GREEN);
-//				ui.leftPanel.add(but);
-//				preY += 51;
-////				map.put(name,k);
-//				k++;
-//			Thread.sleep(1000);
-//		}
-    }
+		Thread thread = new Thread(ui);
+		thread.start();
+	}
 
 	/**
 	 *
@@ -61,11 +47,15 @@ public class ClientUi implements Runnable{
 	private static final long serialVersionUID = 6704231622520334518L;
 
 	private JFrame frame;
-	// private JTextArea text_show;
-	static private JTextPane text_show;
-	private JTextField txt_msg;
-	private JLabel info_name;
-	private JButton btn_send;
+	// private JTextArea textShow;
+	static private JTextPane textShow;
+	private JTextField txtMsg;
+	private JLabel infoName;
+	private JButton btnSend;
+
+	private JButton createGroup;
+
+	private JButton addFriendToGroup;
 
 	private JPanel northPanel;
 	private JPanel southPanel;
@@ -92,8 +82,24 @@ public class ClientUi implements Runnable{
 	@Override
 	public void run() {
 		while (true) {
-			// todo 刷新用户列表
-
+			int k = 0, preY = 0;
+			while (k < 12) {
+				String name = k+ "";
+				System.out.println(name);
+				MyBut but = new MyBut(name);
+				but.setBounds(0, preY , 170, 50);
+				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+				but.setForeground(Color.GREEN);
+				leftPanel.add(but);
+				preY += 51;
+				map.put(name,but);
+				k++;
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+			}
 		}
 	}
 
@@ -103,29 +109,40 @@ public class ClientUi implements Runnable{
 			super(text);
 			addActionListener(a -> {
 				talkingTo = text;
-				Document docs = text_show.getDocument();
+				Document docs = textShow.getDocument();
 				try {
-					docs.remove(0, docs.getLength());
-					ClientChatRecord record = chatRecordMap.get(text);
-					if (record == null) {
-						record = new ClientChatRecord(client.getUserIdByName(text));
-					}
-					chatRecordMap.put(text,record);
-					List<Message> messages = record.getMessages();
+					docs.remove(0,docs.getLength());
 					int offset = 0;
-					for (Message msg : messages) {
-						String toDisplay = msg.toDisplay();
-						if (msg.getSenderId() == client.getSelfId()) {
-							// todo 如果是自己的话，移到右边
-						}
-						docs.insertString(offset, toDisplay , attrset);// 对文本进行追加
-						offset += toDisplay.length();
+					for (int i = 0; i < 1000; i++) {
+						String temp = "line " + i + " __________ \n";
+						docs.insertString(offset,temp,attrset);
+						offset += temp.length();
 					}
 				} catch (BadLocationException e) {
-					e.printStackTrace();
-				} catch (IOException e) {
-					System.out.println("Error on new ClientChatRecord: " + e);
+					throw new RuntimeException(e);
 				}
+//				try {
+//					docs.remove(0, docs.getLength());
+//					ClientChatRecord record = chatRecordMap.get(text);
+//					if (record == null) {
+//						record = new ClientChatRecord(client.getUserIdByName(text));
+//					}
+//					chatRecordMap.put(text,record);
+//					List<Message> messages = record.getMessages();
+//					int offset = 0;
+//					for (Message msg : messages) {
+//						String toDisplay = msg.toDisplay();
+//						if (msg.getSenderId() == client.getSelfId()) {
+//							// todo 如果是自己的话，移到右边
+//						}
+//						docs.insertString(offset, toDisplay , attrset);// 对文本进行追加
+//						offset += toDisplay.length();
+//					}
+//				} catch (BadLocationException e) {
+//					e.printStackTrace();
+//				} catch (IOException e) {
+//					System.out.println("Error on new ClientChatRecord: " + e);
+//				}
 			});
 		}
 
@@ -147,13 +164,13 @@ public class ClientUi implements Runnable{
 		frame.setBackground(Color.PINK);
 		frame.setResizable(false); // 大小不可变
 
-		info_name = new JLabel(user.getName());
-		text_show = new JTextPane();
-		text_show.setEditable(false);
+		infoName = new JLabel(user.getName());
+		textShow = new JTextPane();
+		textShow.setEditable(false);
 		attrset = new SimpleAttributeSet();
 		StyleConstants.setFontSize(attrset, 15);
-		txt_msg = new JTextField();
-		btn_send = new JButton("Send");
+		txtMsg = new JTextField();
+		btnSend = new JButton("Send");
 
 
 		listModel = new DefaultListModel<>();
@@ -170,15 +187,15 @@ public class ClientUi implements Runnable{
 		northPanel.add(info_a);
 
         // 最上面的边框
-		info_name.setForeground(Color.WHITE);
-		info_name.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
-		northPanel.add(info_name);
+		infoName.setForeground(Color.WHITE);
+		infoName.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+		northPanel.add(infoName);
 		TitledBorder info_b = new TitledBorder("My Info");
 		info_b.setTitleColor(Color.WHITE);
 		info_b.setTitleFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
 		northPanel.setBorder(info_b);
 
-		rightScroll = new JScrollPane(text_show);
+		rightScroll = new JScrollPane(textShow);
 		TitledBorder info_c = new TitledBorder("Message");
 		info_c.setTitleColor(Color.DARK_GRAY);
 		info_c.setTitleFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
@@ -186,7 +203,7 @@ public class ClientUi implements Runnable{
 
 
         leftScroll = new JScrollPane(leftPanel,JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
-		TitledBorder info_d = new TitledBorder("Online dto.User");
+		TitledBorder info_d = new TitledBorder("Online User");
 		info_d.setTitleColor(Color.DARK_GRAY);
 		info_d.setTitleFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
 		leftScroll.setBorder(info_d);
@@ -194,22 +211,36 @@ public class ClientUi implements Runnable{
 
 		southPanel = new JPanel(new BorderLayout());
 		southPanel.setLayout(null);
-		txt_msg.setBounds(0, 0, 500, 100);
-		txt_msg.setBackground(Color.PINK);
-		btn_send.setBounds(501, 0, 80, 100);
-		btn_send.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
-		btn_send.setForeground(Color.GREEN);
-		southPanel.add(txt_msg);
-		southPanel.add(btn_send);
+		txtMsg.setBounds(0, 31, 500, 100);
+		txtMsg.setBackground(Color.PINK);
+		btnSend.setBounds(501, 31, 80, 100);
+		btnSend.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 15));
+		btnSend.setForeground(Color.GREEN);
+
+		createGroup = new JButton("Create Group");
+		createGroup.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+		createGroup.setBounds(0,0,180,30);
+		createGroup.addActionListener(e -> btnSend.setText("Create"));
+
+		addFriendToGroup = new JButton("Add friend to group");
+		addFriendToGroup.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+		addFriendToGroup.setBounds(181,0,280,30);
+		addFriendToGroup.addActionListener(e -> btnSend.setText("Send Invitation"));
+
+		southPanel.add(txtMsg);
+		southPanel.add(btnSend);
+		southPanel.add(createGroup);
+		southPanel.add(addFriendToGroup);
 
 		centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftScroll, rightScroll);
 		centerSplit.setDividerLocation(200);
 
+
 		frame.setLayout(null);
 		northPanel.setBounds(0, 0, 600, 80);
 		northPanel.setBackground(Color.pink);
-		centerSplit.setBounds(0, 90, 600, 500);
-		southPanel.setBounds(0, 600, 600, 200);
+		centerSplit.setBounds(0, 80, 600, 500);
+		southPanel.setBounds(0, 580, 600, 200);
 		frame.add(northPanel);
 		frame.add(centerSplit);
 		frame.add(southPanel);
@@ -217,20 +248,17 @@ public class ClientUi implements Runnable{
 		int screen_width = Toolkit.getDefaultToolkit().getScreenSize().width;
 		int screen_height = Toolkit.getDefaultToolkit().getScreenSize().height;
 		frame.setLocation((screen_width - frame.getWidth()) / 2, (screen_height - frame.getHeight()) / 2);
-		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // todo 为了同步消息记录
 
 		// btn_send单击发送按钮时事件
-		btn_send.addActionListener(e -> {
+		btnSend.addActionListener(e -> {
 			// todo 检查是不是好友
-
-
-
-			String text = txt_msg.getText();
+			String text = txtMsg.getText();
 			int userId = client.getUserIdByName(talkingTo);
 			Proto message = Proto.getNewMessage(text);
+			int type = 0;
 			try {
-				client.sendMsgToP(message.toString(),userId);
+				client.sendMsgToP(message.toString(),userId,type);
 			} catch (IOException ex) {
 				System.out.println("发送消息失败: " + ex);
 			}

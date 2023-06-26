@@ -1,5 +1,6 @@
 package net;
 
+import dto.Group;
 import dto.User;
 
 import java.io.File;
@@ -17,7 +18,7 @@ import java.util.List;
 
 public class Client implements Runnable {
 
-    private static final int CLIENT_PORT = 8800; // 定义固定端口号
+    public static final int CLIENT_PORT = 8800; // 定义固定端口号
     private static final int REFRESH_ONLINE_USERS_FREQUENCY = 10;
 
     InetAddress serverIP;
@@ -133,8 +134,8 @@ public class Client implements Runnable {
                     String[] blocks = messageString.split("\\|");
                     for (String block : blocks) {
                         String index[] = block.split(",");
-                        User user = new User(Integer.parseInt(index[0]), index[1], Boolean.parseBoolean(index[2]));
-                        allUsers.put(index[1], user);
+//                        User user = new User(Integer.parseInt(index[0]), index[1], Boolean.parseBoolean(index[2]));
+//                        allUsers.put(index[1], user);
                     }
                     break;
                 }
@@ -201,7 +202,7 @@ public class Client implements Runnable {
 
 
     // 将一条消息发送给某个用户
-    public void sendMsgToP(String msg,int userId) throws IOException {
+    public void sendMsgToP(String msg,int userId,int type) throws IOException {
 
         if (!allUsers.containsKey(userId)) {
             // if 如果用户没有登录
@@ -236,8 +237,8 @@ public class Client implements Runnable {
         socket.send(packet);
     }
 
-    public boolean isFriend(int userId) {
-        return friends.contains(userId);
+    public boolean isFriend(User user) {
+        return friends.contains(user.getId());
     }
 
     public int getUserIdByName (String name) {
@@ -249,5 +250,24 @@ public class Client implements Runnable {
     public int getSelfId () {
         return self.getId();
     }
+
+    public String askForCreateGroup(String groupName,int groupLevel,List<String> toInvites) {
+        StringBuilder errMsg = new StringBuilder();
+        List<User> users = new ArrayList<>();
+        users.add(self);
+        for (String str : toInvites) {
+            User user = allUsers.get(toInvites);
+            if (! isFriend(user)) {
+                errMsg.append(user.getName()).append(" is not your friend, you can't invite he/she.");
+            } else {
+                users.add(user);
+            }
+        }
+        Group group = new Group(groupName, groupLevel, users);
+        // todo 这里该发送请求了
+        return errMsg.toString();
+    }
+
+
 
 }

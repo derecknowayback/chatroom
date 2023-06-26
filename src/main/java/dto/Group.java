@@ -1,96 +1,53 @@
 package dto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class Group {
 
-/*
- * process：
- * 1. client working on run() method
- * 2. send a request to create/join/leave group
- * 2.1 send a message to a group
- * 		message with group ID
- * 
- * 3. if landed in the case of group responses and group ID isn't -1
- * 		3.1 granted new group:
- * 			new group object:
- * 				received group ID
- * 				list of group member
- * 			save to local file
- * 		3.2 granted join group:
- * 			same as above(message sync)
- * 		3.3 leave group success:
- * 			delete this record from local
- * 		
- * 		3.5 received message:
- * 			every once in a while, sent all message records from the group in chronic order, include the ones this user sent
- * 			
- * 
- * 4. refresh group member whenever server broadcast messages
- * 
- * 
- * no need for online user list(for now), the info is kept at server
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- */
-	int groupID;	
-	boolean granted;
-	private int limit;
-	List<User> groupMember = new ArrayList<>();
-	
-	
-	Group(){					//constructor at server side
-		
-		
-	}
-	
-	//return values?
-	//req_ section: in conjunction with proto, messages for the server
-	void req_newGroup(User[] newMembers) {		
-	//input: a list of friends(Users)
-	//send a request to server
-		
-		
-	}
-	
-	void req_joinGroup(User newMember) {				//join this group
-		
-	}
-	
-	void req_leaveGroup(Group g) {	
-		
-	}
-	
-	 
-	//response from the server
-	//assume these are granted
-	
-	void newGroup(int groupID, String message) {				//if server granted creation of new group
-	//save at local, display at front end
-	//message: user ID : text, need to split
-		
-	}
-	
-	
-	
-	void leaveGroup(int groupID) {
-		
-	}
-	
-	void sendMessageToGroup(int groupID, String message) {
-		
-	}
-	
-	void receiveMessageFromGroup(int groupID, String message) {
-	//each time server broadcast the messages, it should also update the user list
-		
-		
-	}
-	
-}	
+    private static final int LEVEL1_LIMIT = 10;
+    private static final int LEVEL2_LIMIT = 50;
+    private static final int LEVEL3_LIMIT = 100;
+
+    int groupID;
+    private int limit;
+    List<User> groupMember;
+    String name ;
+
+    public Group(String name,int level,List<User> users){
+        this.name = name;
+        groupMember = users;
+        switch (level) {
+            case 1 : this.limit = LEVEL1_LIMIT; break;
+            case 2 : this.limit = LEVEL2_LIMIT; break;
+            case 3 : this.limit = LEVEL3_LIMIT; break;
+        }
+    }
+
+
+
+    public boolean addMember (User user) {
+        if (groupMember.size() >= limit) {
+            return false;
+        }
+        groupMember.add(user);
+        return true;
+    }
+
+    public void removeUser (User user) {
+        groupMember.remove(user);
+    }
+
+    public int getGroupID() {
+        return groupID;
+    }
+
+    @Override
+    public String toString() {
+        return "Group{" +
+            "groupID=" + groupID +
+            ", limit=" + limit +
+            ", groupMember=" + groupMember +
+            ", name='" + name + '\'' +
+            '}';
+    }
+}

@@ -129,7 +129,6 @@ public class LoginUi extends JFrame {
                 if (client.getIsLogin()) {
                     dispose();
                     ClientUi ui = new ClientUi(client);
-
                 }
             }
         });

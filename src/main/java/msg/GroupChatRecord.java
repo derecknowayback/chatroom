@@ -1,13 +1,6 @@
 package msg;
 
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.OpenOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.*;
@@ -17,12 +10,11 @@ import java.io.*;
  * 1. void writeRecord
  * 2. List<Message> getMessage
  * 3. addMessages(Message message)
- * 
-
+ *
  */
 public class GroupChatRecord extends ChatRecord{
 	
-	int groupID;
+	int groupId;
 	
 	List<Message> messages;
 	
@@ -31,9 +23,7 @@ public class GroupChatRecord extends ChatRecord{
 	ObjectOutputStream writer;
 	ObjectInputStream reader;
 	
-	
-	
-	
+
     public GroupChatRecord (int groupId) throws IOException {
     	
         this.groupId = groupId;

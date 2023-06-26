@@ -2,6 +2,7 @@ package msg;
 
 
 import java.io.*;
+import java.util.Objects;
 
 /**
  *  Message 一条消息
@@ -74,16 +75,31 @@ public class Message implements Serializable {
 
     @Override
     public String toString() {
-        return "Message{" +
-            "senderId=" + senderId +
-            ", receiverId=" + receiverId +
-            ", content='" + content + '\'' +
-            ", time='" + time + '\'' +
-            '}';
+        return senderId + "," + receiverId + "," + content + "," + time;
     }
 
     public String toDisplay () {
         return senderId + "  " + time + "\n" + content + "\n";
     }
 
+    public Message marshall (String json) {
+        String[] split = json.split(",");
+        return null;
+//        new Message(Integer.parseInt(split[0]),Integer.parseInt(split[1]),split[2],)
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        Message message = (Message) o;
+        return senderId == message.senderId && receiverId == message.receiverId && Objects.equals(content, message.content) && Objects.equals(time, message.time);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(senderId, receiverId, content, time);
+    }
 }

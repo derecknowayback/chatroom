@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Properties;
 
 //JDBC工具类
-public class DbManager {
+public class DBManager {
     private static String url;
     private static String user;
     private static String password;
@@ -82,17 +82,17 @@ public class DbManager {
      */
     public static String checkUser(String name,String password) {
         if (name==null || password==null) {
-            return NameOrPasswordNull;
+            return "false" + "," +NameOrPasswordNull;
         }
         List<User> users = getByName(name);
         if (users.size() == 0) {
-            return NoUserPrefix + name;
+            return "false" + "," +NoUserPrefix + name;
         }
         User user = users.get(0);
         if (! user.getPassword().equals(password)) {
-            return WrongPassword;
+            return "false" + "," + WrongPassword;
         }
-        return null;
+        return "true" + "," +user.getId();
     }
 
 
