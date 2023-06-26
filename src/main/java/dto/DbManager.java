@@ -1,4 +1,5 @@
-package com.main/java.dto;
+package dto;
+
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -13,6 +14,10 @@ public class DbManager {
     private static String user;
     private static String password;
     private static String driver;
+
+    private static Connection connection;
+
+
     //静态代码块
     static {
         //读取资源文件，获取值
@@ -20,8 +25,8 @@ public class DbManager {
             //1.创建Properties集合类
             Properties pro =new Properties();
             //2.加载文件
-            //这里一直找不到配置文件，就用绝对路径了
-            pro.load(new FileReader("C:\\Users\\86186\\IdeaProjects\\jdbc\\jdbc-demo\\src\\com\\jdbc/database.properties"));
+            //这里假如找不到配置文件，就用绝对路径
+            pro.load(new FileReader("database.properties"));
 
             //3.获取数据，赋值
             url = pro.getProperty("url");
@@ -32,38 +37,15 @@ public class DbManager {
             //4.注册驱动
             Class.forName(driver);
 
-        } catch (IOException | ClassNotFoundException e) {
+            connection = DriverManager.getConnection(url, user, password);
+        } catch (IOException | ClassNotFoundException  | SQLException e) {
             e.printStackTrace();
+            System.exit(-1);
         }
     }
 
-    //获取连接的工具方法
-    //返回连接对象
-    public static Connection getConnection() throws SQLException {
-
-        return DriverManager.getConnection(url,user,password);
-    }
-
-    //释放资源
-    public static void close(Statement stemt, Connection conn){
-        if(stemt!=null){
-            try {
-                stemt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        if(conn!=null){
-            try {
-                conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public static void close(ResultSet rs, Statement stemt, Connection conn){
-        if(rs!=null){
+    private static void closeRsAndStatement (ResultSet rs, Statement stemt) {
+        if(rs != null){
             try {
                 rs.close();
             } catch (SQLException e) {
@@ -77,15 +59,20 @@ public class DbManager {
                 e.printStackTrace();
             }
         }
-
-        if(conn!=null){
-            try {
-                conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
     }
+
+    private static int getRows (ResultSet rs) throws SQLException {
+        rs.last();
+        int rowCount = rs.getRow();
+        rs.beforeFirst();
+        return rowCount;
+    }
+
+
+    private static final String NameOrPasswordNull = "name and password are required .";
+    private static final String NoUserPrefix = "No user: ";
+    private static final String WrongPassword = "Wrong Password";
+
 
     /**
      * 用于用于判断用户名和密码是否正确
@@ -93,76 +80,77 @@ public class DbManager {
      * @param password 密码
      * @return
      */
-    public static boolean checkUser(String name,String password)
-    {
-        if (name==null||password==null){
-            return false;
+    public static String checkUser(String name,String password) {
+        if (name==null || password==null) {
+            return NameOrPasswordNull;
         }
-        Connection conn=null;
+        List<User> users = getByName(name);
+        if (users.size() == 0) {
+            return NoUserPrefix + name;
+        }
+        User user = users.get(0);
+        if (! user.getPassword().equals(password)) {
+            return WrongPassword;
+        }
+        return null;
+    }
+
+
+    private static List<User> getByName(String name) {
         Statement stmt=null;
         ResultSet rs=null;
+        List<User> users = new ArrayList<>();
         try {
-            conn = DbManager.getConnection();//工具类连接
-            stmt = conn.createStatement();
-            String sql = "select * from tb_user where username='"+name+"' and password='"+password+"'";
+            stmt = connection.createStatement();
+            String sql ;
+            if (name != null) {
+                sql = "select * from user  where username ='"+ name +"' ";
+            } else {
+                sql = "select * from user ";
+            }
             rs = stmt.executeQuery(sql);
-            return rs.next();
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String username = rs.getString("username");
+                String pwd = rs.getString("password");
+                //封装user对象
+                User user = new User(id,username,pwd);
+                //装载集合
+                users.add(user);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }finally{
-            DbManager.close(rs,stmt,conn);//工具类释放资源
+            closeRsAndStatement(rs,stmt);
         }
-        return false;
+        return users;
     }
+
 
     /**
      * 用于查询单个用户 输入id 返回对象
-     * @param findid
+     * @param userId
      * @return user 返回对象
      */
-    public static List<User> findById(int findid)
-    {
-        Connection conn=null;
+    public static User findById(int userId) {
         Statement stmt=null;
         ResultSet rs=null;
         try {
-            conn = DbManager.getConnection();//工具类连接
-            stmt = conn.createStatement();
-            String sql = "select * from tb_user";
+            stmt = connection.createStatement();
+            String sql = "select * from user where id = '"+ userId + "'";
             rs = stmt.executeQuery(sql);
-            int i, isfind = 1;
-            for(i = 0; i < findid ; i++)
-            {
-                if(!rs.next())
-                {
-                    isfind = 0;
-                    break;
-                }
+            if (! rs.first()) {
+                return null;
             }
-            if(isfind == 1 && i > 0)
-            {
-                String name = rs.getString("username");
-                System.out.println(name);
-                User user = null;
-                List<User> users = new ArrayList<>();
-                int id = rs.getInt("id");
-                String username = rs.getString("username");
-                String password = rs.getString("password");
-                //封装user对象
-                user = new User();
-                user.setId(id);
-                user.setUsername(username);
-                user.setPassword(password);
-                //装载集合
-                users.add(user);
-                return users;
-            }else{
-                System.out.println("不存在该用户！");
-            }
+            int id = rs.getInt("id");
+            String username = rs.getString("username");
+            String pwd = rs.getString("password");
+            User user = new User(id,username,pwd);
+            return user;
         } catch (SQLException e) {
             e.printStackTrace();
         }finally{
-            DbManager.close(rs,stmt,conn);//工具类释放资源
+            closeRsAndStatement(rs,stmt);
         }
         return null;
     }
@@ -173,69 +161,38 @@ public class DbManager {
      * @param password
      * @return
      */
-    public static boolean insertUser(String name,String password)
-    {
-        if (name==null||password==null){
-            return false;
+    public static User insertUser(String name,String password) {
+        if (name == null || password == null){
+            return null;
         }
-        Connection conn=null;
-        ResultSet rs=null;
+        List<User> sameName = getByName(name);
+        if (sameName.size() > 0) {
+            return null;
+        }
+        PreparedStatement stmt = null;
         try {
-            conn = DbManager.getConnection();//工具类连接
-            String sql = "insert into tb_user(username, password) values (?, ?)";
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            String sql = "insert into user (username, password) values (?, ?)";
+            stmt = connection.prepareStatement(sql);
             stmt.setString(1, name);
             stmt.setString(2, password);
             int count = stmt.executeUpdate();
-            if(count > 0)
-                return true;
-            else
-                return false;
+            if(count < 0)
+                return null;
+            List<User> user = getByName(name);
+            return user.get(0);
         } catch (SQLException e) {
             e.printStackTrace();
-        }finally{
-            DbManager.close(rs, null,conn);//工具类释放资源
+        } finally {
+            closeRsAndStatement(null,stmt);
         }
-        return false;
+        return null;
     }
 
     /**
      * 查询所有用户
      * @return 返回users集合
      */
-    public static List<User> findAllUsers()
-    {
-        Connection conn=null;
-        Statement stmt=null;
-        ResultSet rs=null;
-        try {
-            conn = DbManager.getConnection();//工具类连接
-            stmt = conn.createStatement();
-            String sql = "select * from tb_user";
-            rs = stmt.executeQuery(sql);
-            //封装user对象 装载List集合
-            User user = null;
-            List<User> users = new ArrayList<>();
-            while (rs.next())
-            {
-                int id = rs.getInt("id");
-                String username = rs.getString("username");
-                String password = rs.getString("password");
-                //封装user对象
-                user = new User();
-                user.setId(id);
-                user.setUsername(username);
-                user.setPassword(password);
-                //装载集合
-                users.add(user);
-            }
-            return users;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }finally{
-            DbManager.close(rs,stmt,conn);//工具类释放资源
-
-        }
-        return null;
+    public static List<User> findAllUsers() {
+        return getByName(null);
     }
 }
