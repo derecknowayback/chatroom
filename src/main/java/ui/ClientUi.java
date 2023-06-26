@@ -35,9 +35,9 @@ public class ClientUi implements Runnable{
 
 
     public static void main(String[] args) throws SocketException, InterruptedException {
-//		Client cli = new Client();
-//		cli.setSelf(new User("ccc","11"));
-//		ClientUi ui = new ClientUi(cli);
+		Client cli = new Client();
+		cli.setSelf(new User("ccc","11"));
+		ClientUi ui = new ClientUi(cli);
 //		int k = 0, preY = 0;
 //		while (k < 12) {
 //			String name = k+ "";
@@ -223,6 +223,8 @@ public class ClientUi implements Runnable{
 		// btn_send单击发送按钮时事件
 		btn_send.addActionListener(e -> {
 			// todo 检查是不是好友
+
+
 
 			String text = txt_msg.getText();
 			int userId = client.getUserIdByName(talkingTo);

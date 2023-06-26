@@ -9,7 +9,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,7 +59,7 @@ public class Client implements Runnable {
             friendFile.createNewFile();
         }
         RandomAccessFile raf = new RandomAccessFile(friendFile, "rw");
-        raf.writeInt(this.friends.size());
+        raf.writeInt(friends.size());
         for (Integer friend : friends) {
             raf.writeInt(friend);
         }
@@ -122,40 +121,47 @@ public class Client implements Runnable {
             // 对包进行分类
             // type部分和message部分用‘,’分隔
             byte[] data = packet.getData();
-            int length = packet.getLength();
-            String[] dataString = data.toString().split(",", 2);
+            String payload = new String(data);
+            String[] dataString = payload.split(",", 2);
             String typeString = dataString[0];
-            String messageData = dataString[1];
+            String messageString = dataString[1];
 
             // 接下来开始解析: type + content
             int type = Integer.parseInt(typeString);
             switch (type) {
                 case Proto.RespForAllUsers: {
-                    String messageString = new String(messageData);
                     String[] blocks = messageString.split("\\|");
                     for (String block : blocks) {
                         String index[] = block.split(",");
                         User user = new User(Integer.parseInt(index[0]), index[1], Boolean.parseBoolean(index[2]));
                         allUsers.put(index[1], user);
                     }
+                    break;
                 }
+
                 case Proto.RespForSaveMsg : {
-                    String messageString = new String(messageData);
                     // do nothing
+
+
                 }
                 case Proto.RespForLogin: {
                     //boolean和string之间用‘,’分隔
-                    String responseData;
-                    String index[] = messageData.split(",");
-                    boolean isLogin = Boolean.parseBoolean(index[0]);;
-                    if (!isLogin) {
-                        responseData = index[1];
+                    String index[] = messageString.split(",");
+                    boolean isLoginSuccess = Boolean.parseBoolean(index[0]);
+                    if (isLoginSuccess) {
+                        isLogin = true;
+                    } else {
+                        isLogin = false;
+                        loginFailedMsg = index[1];
                     }
+                    break;
                 }
                 case Proto.SendForMsg: {
+                    String[] blocks = messageString.split("\\|");
+                    for (String msgStr : blocks) {
 
+                    }
                 }
-
             }
 
 
@@ -187,8 +193,8 @@ public class Client implements Runnable {
             String[] fileds = userStr.split(",");
             // id name ip
             int id = Integer.parseInt(fileds[0]);
-            User user = new User(fileds[1], fileds[2], id);
-            res.add(user);
+//            User user = new User(fileds[1], fileds[2], id);
+//            res.add(user);
         }
         return res;
     }
