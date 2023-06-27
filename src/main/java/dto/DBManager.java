@@ -286,7 +286,7 @@ public class DBManager {
      * @return
      * @throws SQLException
      */
-    public static boolean removeUserFromGroup(int groupID, User user) throws SQLException {
+    public static boolean removeUserFromGroup(int groupID, int userId) {
         // 查询原来的群组成员列表
         String selectSql = "SELECT * FROM `group` WHERE `groupID` = '"+groupID+"'";
         PreparedStatement selectStmt = null;
@@ -304,7 +304,7 @@ public class DBManager {
             boolean found = false;
             StringBuilder newMemberStrBuilder = new StringBuilder();
             for (String memberID : oldMemberIDs) {
-                if (memberID.equals(String.valueOf(user.getId()))) {
+                if (memberID.equals(String.valueOf(userId))) {
                     found = true;
                 } else {
                     newMemberStrBuilder.append(memberID).append(",");

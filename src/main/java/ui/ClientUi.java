@@ -96,22 +96,33 @@ public class ClientUi implements Runnable{
 
 	class MyBut extends JButton {
 
-		public MyBut(String text) {
+		boolean isGroup;
+
+		public MyBut(String text,boolean isGroup) {
 			super(text);
+			this.isGroup = isGroup;
 			addActionListener(a -> {
 				talkingTo = text;
-				List<Message> messages = client.getRecordByName(talkingTo);
-				Document docs = textShow.getDocument();
-				try {
-					int offset = 0;
-					docs.remove(0,docs.getLength());
-					for (Message msg : messages) {
-						String toDisplay = msg.toDisplay();
-						offset = toDisplayString(toDisplay,offset);
+				// todo 下方的send button 也要改变
+
+				// 如果不是群组的话
+				if (!isGroup) {
+					List<Message> messages = client.getRecordByName(talkingTo);
+					Document docs = textShow.getDocument();
+					try {
+						int offset = 0;
+						docs.remove(0,docs.getLength());
+						for (Message msg : messages) {
+							String toDisplay = msg.toDisplay();
+							offset = toDisplayString(toDisplay,offset);
+						}
+					} catch (BadLocationException e) {
+						e.printStackTrace();
 					}
-				} catch (BadLocationException e) {
-					e.printStackTrace();
+				} else {
+					List<Message> messages = ;
 				}
+
 			});
 		}
 
@@ -142,6 +153,13 @@ public class ClientUi implements Runnable{
 			e.printStackTrace();
 		}
 		toDisplayString(s,0);
+	}
+
+	private boolean isRespMakeFriend() {
+		boolean isFriend = client.isFriend(talkingTo);
+		boolean isMsgEmpty = client.getRecordByName(talkingTo).isEmpty();
+		// 不是朋友且对方发了一条消息
+		return !isFriend && !isMsgEmpty;
 	}
 
 	// 构造方法
@@ -255,11 +273,21 @@ public class ClientUi implements Runnable{
 			String text = txtMsg.getText();
 			switch (btnSend.getText()) {
 				case BtnTextSend : {
-					int userId = client.getUserIdByName(talkingTo);
-					Proto message = Proto.getNewMessage(text);
-					int type = 0;
+					// todo 判断这是不是一个群 ?
+
 					try {
-						client.sendMsgToP(message.toString(),userId,type);
+						boolean isResp4Friend = isRespMakeFriend();
+						if (isResp4Friend) {
+							if ("Yes".equals(text)) {
+								client.addFriend(talkingTo);
+							} else {
+								client.clearRecord(talkingTo);
+							}
+							client.sendMsgToP(text,talkingTo,true);
+						} else {
+							client.sendMsgToP(text,talkingTo,false);
+						}
+
 					} catch (IOException ex) {
 						System.out.println("发送消息失败: " + ex);
 					}
@@ -284,7 +312,6 @@ public class ClientUi implements Runnable{
 				} break;
 			}
 		});
-
 
 		leftPanel.setLayout(null);
 		leftPanel.setPreferredSize(new Dimension(200,2000));

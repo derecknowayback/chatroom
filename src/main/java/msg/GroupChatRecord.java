@@ -52,7 +52,7 @@ public class GroupChatRecord extends ChatRecord{
             } catch (EOFException e) {
                 System.out.println("create file...");
             }
-            writer = new ObjectOutputStream(new FileOutputStream(fileName,true));
+            writer = new ObjectOutputStream(new FileOutputStream(fileName,false));
     }
 
     public void writeRecord() {

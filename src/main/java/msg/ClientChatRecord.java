@@ -95,5 +95,16 @@ public class ClientChatRecord extends ChatRecord {
 
     }
 
+    public void clear() {
+        try {
+            writer.close();
+            String fileName = FILE_PREFIX + userId;
+            File file = new File(fileName);
+            if (file.exists()) file.delete();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }
 

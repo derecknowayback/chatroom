@@ -5,7 +5,6 @@ import dto.Group;
 import dto.User;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -16,9 +15,9 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import msg.ClientChatRecord;
 import msg.GroupChatRecord;
 import msg.Message;
 import msg.ServerChatRecord;
@@ -29,9 +28,9 @@ public class Server implements Runnable {
 
     ServerChatRecord serverChatRecord;
 
-    HashMap<Integer, GroupChatRecord> groupChatRecordMap;
+    HashMap<String, GroupChatRecord> groupChatRecordMap;
 
-   HashMap<Integer, GroupManager> groupHashMap;
+   HashMap<String, Group> groupHashMap;
 
    DatagramSocket socket;
 
@@ -47,7 +46,7 @@ public class Server implements Runnable {
     public void run() {
 
         int refreshOnlineUser = 0;
-        byte[] bytes = new byte[1024];
+        byte[] bytes = new byte[1024 * 1000];
         DatagramPacket packet = new DatagramPacket(bytes, bytes.length);
         while (true) {
             try {
@@ -55,16 +54,64 @@ public class Server implements Runnable {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            byte[] data = packet.getData();
-            String payload = new String(data);
+            InetAddress address = packet.getAddress();
+            String payload = new String(packet.getData());
             String[] dataString = payload.split(",", 2);
-            String typeString = dataString[0];
-            String messageString = dataString[1];
-
-
-
-
-
+            int type = Integer.parseInt(dataString[0]);
+            String message= dataString[1];
+            switch (type) {
+                case Proto.AskForLogin: {
+                    String[] split = message.split(",");
+                    acceptUser(split[0],split[1],address);
+                } break;
+                case Proto.AskForRegister: {
+                    String[] split = message.split(",");
+                    createUser(split[0],split[1],address );
+                } break;
+                case Proto.AskForSaveMsg: {
+                    String[] split = message.split("\\|");
+                    Message msg = new Message(Integer.parseInt(split[0]), Integer.parseInt(split[1]), split[2], split[3]);
+                    serverChatRecord.addMessages(msg);
+                } break;
+                case Proto.SynMsg: {
+                    String[] split = message.split("\\|", 2);
+                    handleSynMsg(Integer.parseInt(split[0]),split[1]);
+                } break;
+                case Proto.AskForMakeFriend:
+                case Proto.RespForMakeFriend: {
+                    String[] split = message.split("\\|",4);
+                    Message msg = new Message(Integer.parseInt(split[0]), Integer.parseInt(split[1]), split[2], split[3]);
+                    serverChatRecord.addMessages(msg);
+                } break;
+                case Proto.AskForNewGroup: {
+                    String[] split = message.split("\\|", 3);
+                    String[] idStrs = split[2].split(",");
+                    List<Integer> ids = new ArrayList<>();
+                    for (String str : idStrs)
+                        ids.add(Integer.parseInt(str));
+                    createGroup(split[0],Integer.parseInt(split[1]),ids);
+                    // todo 只改了数据库，内存没改
+                } break;
+                case Proto.AskToJoinGroup: {
+                    String[] split = message.split("\\|", 2);
+                    String[] idStrs = split[1].split(",");
+                    for (String str : idStrs){
+                        int id = Integer.parseInt(str);
+                        joinGroup(split[0],id);
+                        // todo 只改了数据库，内存没改
+                    }
+                } break;
+                case Proto.AskToLeave: {
+                    String[] split = message.split("\\|", 2);
+                    //message: sender_id | group_name
+                    removeFromGroup(split[1],Integer.parseInt(split[0]));
+//                    todo 只改了数据库，内存没改
+                } break;
+                case Proto.NewGroupMessage: {
+                    String[] split = message.split("\\|", 3);
+                    // todo 把这条消息记录插到Group里面
+                } break;
+            }
         }
     }
 
@@ -83,6 +130,7 @@ public class Server implements Runnable {
             pubAllUsers(userId);
             // 推送积压的消息
             pubMsg(userId);
+            // todo 发送消息记录
         }
         Proto resp = Proto.getRespForLogin(msg);
         byte[] payload = resp.toString().getBytes(StandardCharsets.UTF_8);
@@ -158,14 +206,25 @@ public class Server implements Runnable {
     }
 
     public void createGroup (String name,int level,List<Integer> memberIds) {
-        DBManager.createGroup(Group.getLimitByLevel(level), name, memberIds);
+        int groupId = DBManager.createGroup(Group.getLimitByLevel(level), name, memberIds);
+        Group group = new Group(groupId, name,level, memberIds);
+        groupHashMap.put(name,group);
+    }
 
+    public boolean joinGroup(String groupName,int userId) {
+        Group group = groupHashMap.get(groupName);
+        if (group == null)  return false;
+        group.addMember(userId);
+        return DBManager.addUserToGroup(group.getGroupID(),userId);
     }
 
 
-    public void removeFromGroup (int userId) {
-        // todo 将成员从群组中移除
 
+    public boolean removeFromGroup (String groupName,int userId) {
+        Group group = groupHashMap.get(groupName);
+        if (group == null)  return false;
+        group.removeUser(userId);
+        return DBManager.removeUserFromGroup(group.getGroupID(),userId);
     }
 
 
@@ -176,8 +235,7 @@ public class Server implements Runnable {
 
 
     // 现在开始处理一下用户记录的事情
-
-    public void handleClientChatRecord (int senderId,String data)  {
+    public void handleSynMsg (int senderId,String data)  {
         // 文件名: sendId_recvId
         // 格式: 版本号 + 消息记录数 + 消息记录
         String[] split = data.split("\\|");
@@ -280,6 +338,4 @@ public class Server implements Runnable {
             }
         }
     }
-
-
 }

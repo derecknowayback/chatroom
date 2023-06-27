@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -171,28 +172,10 @@ public class Client implements Runnable {
                     }
                 }
             }
-
-
-            // 定期获取在线用户
-            if (refreshOnlineUser == REFRESH_ONLINE_USERS_FREQUENCY) {
-                try {
-                    askForAllUsers();
-                    refreshOnlineUser = 0;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            refreshOnlineUser ++;
         }
     }
 
 
-    public void askForAllUsers() throws IOException {
-        Proto askForOnlineUsers = Proto.getAskForAllUsers();
-        byte[] payload = askForOnlineUsers.toString().getBytes(StandardCharsets.UTF_8);
-        DatagramPacket packet = new DatagramPacket(payload,0,payload.length,serverIP,serverPort);
-        socket.send(packet);
-    }
 
     public List<User> resolveAllUsers(String s) {
         String[] split = s.split(";");
@@ -209,66 +192,79 @@ public class Client implements Runnable {
 
 
     // 将一条消息发送给某个用户
-    public void sendMsgToP(String msg,int userId,int type) throws IOException {
-
-
+    public void sendMsgToP(String msg,String name,boolean isRespForMakeFriend) throws IOException {
         // 登录了没有 + 是不是好友
         // 不是好友要发送make friend的消息，
         // 在线的话要发给对方，不在线的话要发给服务器
         // 服务器可以接收 make friend / resp make friend / save for msg 3种消息
         // 客户端在前端来选择要不要接受消息
         // 是好友的话同上
-
-        boolean isFriend;
-        if (friends.contains(userId)) {
-            isFriend = true;
-        } else {
-            isFriend = false;
-        }
-
-        Proto p = new Proto();
-
-        if (!allUsers.containsKey(userId)) {
-            // if 如果用户没有登录
-            if (isFriend){
-                p = Proto.getNewMessage(msg);
-            } else {
-                if (type == 0) {
-                    p = Proto.getAskForMakeFriend(msg);
-                } else if (type == 1) {
-                    p = Proto.getRespForMakeFriend(true);
-                } else  {
-                    p = Proto.getRespForMakeFriend(false);
-                }
-            }
+        User user = allUsers.get(name);
+        Proto p;
+        StringBuilder sb = new StringBuilder();
+        if (isRespForMakeFriend) {
+            sb.append(getSelfId()).append("|").append(user.getId()).append("|");
+            if(msg.equals("Yes"))
+                sb.append("Yes");
+            else
+                sb.append("No");
+            sb.append("|").append(new Date());
+            p = Proto.getRespForMakeFriend(sb.toString());
             byte[] payload = p.toString().getBytes(StandardCharsets.UTF_8);
-            DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+            // 判断该往哪里发
+            DatagramPacket packet ;
+            if (user.isOnline()) {
+                packet = new DatagramPacket(payload, 0, payload.length, user.getIp(), CLIENT_PORT);
+            } else {
+                packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+            }
             socket.send(packet);
         } else {
-            // else 如果用户登录了
-            if (isFriend){
-                p = Proto.getNewMessage(msg);
-            } else {
-                if (type == 0) {
-                    p = Proto.getAskForMakeFriend(msg);
-                } else if (type == 1) {
-                    p = Proto.getRespForMakeFriend(true);
-                } else {
-                    p = Proto.getRespForMakeFriend(false);
+            // 如果是好友的话:
+            if (friends.contains(user.getId())) {
+                sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(new Date());
+                if (user.isOnline()){
+                    p = Proto.getNewMessage(msg);
                 }
+                else{
+                    p = Proto.getAskForSaveMsg(sb.toString());
+                }
+            } else {
+                sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(new Date());
+                p = Proto.getAskForMakeFriend(sb.toString());
             }
-            String ip = "11";
-            InetAddress inetAddress = InetAddress.getByName(ip);
             byte[] payload = p.toString().getBytes(StandardCharsets.UTF_8);
-            DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, inetAddress, CLIENT_PORT);
+            DatagramPacket packet ;
+            if (user.isOnline()) {
+                packet = new DatagramPacket(payload,0,payload.length,user.getIp(),CLIENT_PORT);
+            } else {
+                packet = new DatagramPacket(payload,0,payload.length,serverIP,serverPort);
+            }
             socket.send(packet);
         }
-        // todo 如果需要从server发送积压消息切换到实时沟通，需要同步一下
-        // sendMsgToS
-
-        // sendMsgToP
-//        String ip = allUsers.get(userId);
+        // todo 积压消息实现了吗
     }
+
+
+    // 将一条消息发送给群组
+    public void sendMsgToG(String msg,String name) {
+        Group group = allGroups.get(name);
+        boolean isMember = group.isMember(getSelfId());
+        if (!isMember) {
+            return ;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(getSelfId()).append("|").append(name).append("|").append(msg);
+        Proto groupMessage = Proto.getNewGroupMessage(msg);
+        byte[] payload = groupMessage.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     // 做好了
     public void askForRegister(String name, String password) {
@@ -298,7 +294,24 @@ public class Client implements Runnable {
     }
 
 
+    public void clearRecord(String name) {
+        ClientChatRecord record = chatRecordMap.get(name);
+        if (record == null) return;
+        record.clear();
+    }
+
+    public void addFriend (String name) {
+        User user = allUsers.get(name);
+        friends.add(user.getId());
+    }
+
     public boolean isFriend(User user) {
+        return friends.contains(user.getId());
+    }
+
+    public boolean isFriend(String userName) {
+        User user = allUsers.get(userName);
+        if (user == null) return false;
         return friends.contains(user.getId());
     }
 
@@ -347,8 +360,8 @@ public class Client implements Runnable {
             if (! isFriend(user)) {
                 errMsg.append(user.getName()).append(" is not your friend, you can't invite he/she.\n");
             } else {
-                toInvite.append(user.getId());
                 if (!isFirst) toInvite.append(",");
+                toInvite.append(user.getId());
                 isFirst = false;
             }
         }
@@ -393,7 +406,7 @@ public class Client implements Runnable {
     public void askForSynChatRecord () {
         for (String userName : chatRecordMap.keySet()) {
             ClientChatRecord record = chatRecordMap.get(userName);
-            String data = record.getData();
+            String data = getSelfId() + "|"  +record.getData();
             Proto synMsg = Proto.getSynMsg(data);
             byte[] payload = synMsg.toString().getBytes(StandardCharsets.UTF_8);
             DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);

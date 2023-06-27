@@ -53,23 +53,6 @@ public class GroupManager {
 	private static HashMap<Integer,Group> groupHashMap = new HashMap<>();
 
 
-	//req_ section: in conjunction with proto, messages for the server
-	public static void createNewGroup (String name,int level,List<User> newMembers) {
-		//input: a list of friends(Users)
-		//send a request to server
-		Group group = new Group(name, level, newMembers);
-		// todo 调用数据库接口来插入group, 获取groupId
-
-		groupHashMap.put(group.getGroupID(),group);
-	}
-
-	public static boolean joinGroup(int groupId,User newMember) {
-		Group group = groupHashMap.get(groupId);
-		if (group == null) {
-			return false;
-		}
-		return group.addMember(newMember);
-	}
 
 	public static void leaveGroup(int groupId,User toLeave) {
 		Group group = groupHashMap.get(groupId);
@@ -87,7 +70,6 @@ public class GroupManager {
 		//save at local, display at front end
 		//message: user ID : text, need to split
 //		GroupChatRecord newGroupRecord = new GroupChatRecord(groupID, messages);
-
 
 	}
 

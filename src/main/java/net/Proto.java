@@ -12,7 +12,6 @@ public class Proto {
 
 
     // 客户端请求服务端
-    public static final int AskForAllUsers = 1;
     public static final int AskForSaveMsg= 2;
 
     public static final int AskForRegister = 3;
@@ -44,38 +43,23 @@ public class Proto {
 
     //创建群聊
     public static final int AskForNewGroup = 11;
-    public static final int RespForNewGroup = 12;
 
     //加入群聊
     public static final int AskToJoinGroup = 13;
-    public static final int RespToJoin = 14;
+
 
     //离开群聊
     public static final int AskToLeave = 15;
-    public static final int RespToLeave = 16;
 
     //发送群消息
     public static final int NewGroupMessage = 17;
-    public static final int RecvGroupMessage = 18;
 
 
     public static final int BacklogMsg = 19;
 
 
-    public static Proto getSendForMsg (String message) {
-        Proto proto = new Proto(message);
-        proto.type = SendForMsg;
-        return proto;
-    }
-
-    // 请求所有用户
-    public static Proto getAskForAllUsers( ) {
-        Proto proto = new Proto("");
-        proto.type = AskForAllUsers;
-        return proto;
-    }
-
     public static Proto getAskForSaveMsg( String message) {
+        // senderId | receiverId | msg | time
         Proto proto = new Proto(message);
         proto.type = AskForSaveMsg;
         return proto;
@@ -94,18 +78,21 @@ public class Proto {
     }
 
     public static Proto getAskForMakeFriend (String hello) {
+        // sender | receiver | hello | time
         Proto proto = new Proto(hello);
         proto.type = AskForMakeFriend;
         return proto;
     }
 
-    public static Proto getRespForMakeFriend (boolean doAgree) {
-        Proto proto = new Proto(doAgree ? "Y" : "N");
+    public static Proto getRespForMakeFriend (String msg) {
+        // sender | receiver | Yes or No | time
+        Proto proto = new Proto(msg);
         proto.type = RespForMakeFriend;
         return proto;
     }
 
     public static Proto getNewMessage (String message) {
+        // senderId | receiverId | msg | time
         Proto proto = new Proto(message);
         proto.type = NewMessage;
         return proto;
@@ -119,6 +106,7 @@ public class Proto {
     }
 
     public static Proto getAskForLogin (String userStr) {
+        // name + ,  + password
         Proto proto = new Proto(userStr);
         proto.type = AskForLogin;
         return proto;
@@ -139,21 +127,21 @@ public class Proto {
     }
 
     public static Proto getAskToJoin(String message){
-    //message: group_id  |  id1,id2,id3
+    //message: group_name  |  id1,id2,id3
         Proto p = new Proto(message);
         p.type = AskToJoinGroup;
         return p;
     }
 
     public static Proto getNotifyToLeave(String message){
-    //message: user info | group id
+    //message: sender_id | group_name
         Proto p = new Proto(message);
         p.type = AskToLeave;
         return p;
     }
 
     public static Proto getNewGroupMessage(String message){
-    //message: user info + content
+    //message: senderId | groupName | msg
         Proto p = new Proto(message);
         p.type = NewGroupMessage;
         return p;
@@ -166,6 +154,8 @@ public class Proto {
     }
 
     public static Proto getSynMsg (String dataStr) {
+        // selfId(也就是senderId) + | + data
+        // data = version | receiver | msg1 | msg2 ...
         Proto p = new Proto(dataStr);
         p.type = SynMsg;
         return p;
