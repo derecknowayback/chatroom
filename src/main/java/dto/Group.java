@@ -10,10 +10,10 @@ public class Group {
 
     int groupID;
     private int limit;
-    List<User> groupMember;
+    List<Integer> groupMember;
     String name ;
 
-    public Group(String name,int level,List<User> users){
+    public Group(String name,int level,List<Integer> users){
         this.name = name;
         groupMember = users;
         switch (level) {
@@ -23,13 +23,21 @@ public class Group {
         }
     }
 
-
+    public static int getLimitByLevel(int level) {
+        switch (level) {
+            case 1 : return LEVEL1_LIMIT;
+            case 2 : return LEVEL2_LIMIT;
+            case 3 : return LEVEL3_LIMIT;
+        }
+        return -1;
+    }
 
     public boolean addMember (User user) {
+        int id = user.getId();
         if (groupMember.size() >= limit) {
             return false;
         }
-        groupMember.add(user);
+        groupMember.add(id);
         return true;
     }
 
@@ -43,11 +51,24 @@ public class Group {
 
     @Override
     public String toString() {
-        return "Group{" +
-            "groupID=" + groupID +
-            ", limit=" + limit +
-            ", groupMember=" + groupMember +
-            ", name='" + name + '\'' +
-            '}';
+        return null;
     }
+
+
+    public String askCreateStr(){
+        StringBuilder builder = new StringBuilder(name + "|" + limit + "|");
+        for (int i = 0; i < groupMember.size(); i++) {
+            builder.append(groupMember.get(i));
+            if (i != groupMember.size() - 1)
+                builder.append(",");
+        }
+        return builder.toString();
+    }
+
+    public boolean isMember(int userId) {
+        return groupMember.contains(userId);
+    }
+
+
+
 }

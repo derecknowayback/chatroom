@@ -1,6 +1,5 @@
 package net;
 
-import java.util.List;
 import msg.ClientChatRecord;
 
 public class Proto {
@@ -21,6 +20,8 @@ public class Proto {
 
     public static final int SynMsg = 100;
 
+    public static final int PubSynMsg = 120;
+
     // 服务端响应客户端
     public static final int RespForAllUsers = 5; // user | user | ...
     public static final int RespForSaveMsg = 6; //
@@ -30,6 +31,7 @@ public class Proto {
     // 数据 : 一个boolean + 一个string ，如果boolean是false，string 不是null
 
     public static final int SendForMsg = 1012; // 服务端向客户端发送积压的消息, msg | msg | msg
+
 
     // 客户端和客户端发消息
     public static final int AskForMakeFriend = 8; //
@@ -110,6 +112,7 @@ public class Proto {
     }
 
     public static Proto getAskForRegister (String userStr) {
+        // name + , + password
         Proto proto = new Proto(userStr);
         proto.type = AskForRegister;
         return proto;
@@ -128,22 +131,22 @@ public class Proto {
     }
 
 //群聊proto(无resp部分):
-    public static Proto getAskForNewGroup(String message){
-    //message: user info + friend list + group name limit level
+    public static Proto getAskForNewGroup(String message) {
+        // 群聊名称 | 等级 | 1,2,3,4,5,6(id们)
         Proto p = new Proto(message);
         p.type = AskForNewGroup;
         return p;
     }
 
     public static Proto getAskToJoin(String message){
-    //message: join_user info + group id
+    //message: group_id  |  id1,id2,id3
         Proto p = new Proto(message);
         p.type = AskToJoinGroup;
         return p;
     }
 
     public static Proto getNotifyToLeave(String message){
-    //message: user info + group id
+    //message: user info | group id
         Proto p = new Proto(message);
         p.type = AskToLeave;
         return p;
@@ -162,9 +165,15 @@ public class Proto {
         return p;
     }
 
-    public static Proto getSynMsg (ClientChatRecord chatRecord) {
-        Proto p = new Proto(new String(chatRecord.getData()));
+    public static Proto getSynMsg (String dataStr) {
+        Proto p = new Proto(dataStr);
         p.type = SynMsg;
+        return p;
+    }
+
+    public static Proto getPubSynMsg (String dataStr) {
+        Proto p = new Proto(dataStr);
+        p.type = PubSynMsg;
         return p;
     }
 

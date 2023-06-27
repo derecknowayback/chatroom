@@ -1,7 +1,9 @@
 package msg;
 
-
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -82,10 +84,9 @@ public class Message implements Serializable {
         return senderId + "  " + time + "\n" + content + "\n";
     }
 
-    public Message marshall (String json) {
+    public static Message marshall (String json) {
         String[] split = json.split(",");
-        return null;
-//        new Message(Integer.parseInt(split[0]),Integer.parseInt(split[1]),split[2],)
+        return new Message(Integer.parseInt(split[0]),Integer.parseInt(split[1]),split[2],split[3]);
     }
 
     @Override

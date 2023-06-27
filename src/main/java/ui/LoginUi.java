@@ -1,6 +1,5 @@
 package ui;
 
-import dto.User;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -9,7 +8,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
-import java.io.IOException;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -18,7 +16,6 @@ import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 import net.Client;
-import net.Proto;
 
 public class LoginUi extends JFrame {
 
@@ -105,13 +102,7 @@ public class LoginUi extends JFrame {
                 String name = userName.getText();
                 String pwd = String.valueOf(password.getPassword());
                 // 发请求，验证登录
-                User user = new User(name, pwd);
-                Proto askForLogin = Proto.getAskForLogin(user.toString());
-                try {
-                    client.sendMsgToS(askForLogin.toString());
-                } catch (IOException ex) {
-                    System.out.println("ask for login failed ...");
-                }
+                client.askForLogin(name,pwd);
                 while (!client.getIsLogin()) {
                     try {
                         // 等待server的响应
@@ -144,39 +135,31 @@ public class LoginUi extends JFrame {
         btnRegister.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 25));
         btnRegister.setPreferredSize(new Dimension(170, 40));
         contentPane.add(btnRegister);
-        btnRegister.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                // 发请求 申请注册
-                String name = userName.getText();
-                String pwd = String.valueOf(password.getPassword());
-                // 发请求，验证登录
-                User user = new User(name, pwd);
-                Proto askForRegister = Proto.getAskForRegister(user.toString());
+        btnRegister.addActionListener(e -> {
+            // 发请求 申请注册
+            String name = userName.getText();
+            String pwd = String.valueOf(password.getPassword());
+            // 发请求，验证登录
+            client.askForRegister(name,pwd);
+            while (!client.getIsLogin()) {
                 try {
-                    client.sendMsgToS(askForRegister.toString());
-                } catch (IOException ex) {
+                    // 等待server的响应
+                    client.wait();
+                    // 查看结果
+                    String errMsg = client.getLoginFailedMsg();
+                    if (errMsg != null) {
+                        labelError.setText(errMsg);
+                        break;
+                    }
+                } catch (InterruptedException ex) {
                     ex.printStackTrace();
                 }
-                while (!client.getIsLogin()) {
-                    try {
-                        // 等待server的响应
-                        client.wait();
-                        // 查看结果
-                        String errMsg = client.getLoginFailedMsg();
-                        if (errMsg != null) {
-                            labelError.setText(errMsg);
-                            break;
-                        }
-                    } catch (InterruptedException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-                if (client.getIsLogin()) {
-                    dispose();
-                    ClientUi ui = new ClientUi(client);
-                    Thread clientThread = new Thread(ui);
-                    clientThread.start();
-                }
+            }
+            if (client.getIsLogin()) {
+                dispose();
+                ClientUi ui = new ClientUi(client);
+                Thread clientThread1 = new Thread(ui);
+                clientThread1.start();
             }
         });
 

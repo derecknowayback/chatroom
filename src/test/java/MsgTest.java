@@ -1,9 +1,7 @@
-import msg.ClientChatRecord;
-import msg.Message;
-import msg.ServerChatRecord;
-
 import java.io.IOException;
 import java.util.List;
+import msg.Message;
+import msg.ServerChatRecord;
 import org.junit.Assert;
 import org.junit.Test;
 

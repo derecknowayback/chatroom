@@ -28,6 +28,7 @@ import javax.swing.text.Document;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import msg.ClientChatRecord;
+import msg.Message;
 import net.Client;
 import net.Proto;
 
@@ -84,31 +85,12 @@ public class ClientUi implements Runnable{
 	private User user;
 	private Client client;
 
-	private HashMap<String,ClientChatRecord> chatRecordMap;
-
 	private String talkingTo;
 
 	@Override
 	public void run() {
 		while (true) {
-			int k = 0, preY = 0;
-			while (k < 12) {
-				String name = k+ "";
-				System.out.println(name);
-				MyBut but = new MyBut(name);
-				but.setBounds(0, preY , 170, 50);
-				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
-				but.setForeground(Color.GREEN);
-				leftPanel.add(but);
-				preY += 51;
-				map.put(name,but);
-				k++;
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-			}
+
 		}
 	}
 
@@ -118,39 +100,18 @@ public class ClientUi implements Runnable{
 			super(text);
 			addActionListener(a -> {
 				talkingTo = text;
+				List<Message> messages = client.getRecordByName(talkingTo);
 				Document docs = textShow.getDocument();
 				try {
-					docs.remove(0,docs.getLength());
 					int offset = 0;
-					for (int i = 0; i < 1000; i++) {
-						String temp = "line " + i;
-						offset = toDisplayString(temp,offset);
+					docs.remove(0,docs.getLength());
+					for (Message msg : messages) {
+						String toDisplay = msg.toDisplay();
+						offset = toDisplayString(toDisplay,offset);
 					}
 				} catch (BadLocationException e) {
-					throw new RuntimeException(e);
+					e.printStackTrace();
 				}
-//				try {
-//					docs.remove(0, docs.getLength());
-//					ClientChatRecord record = chatRecordMap.get(text);
-//					if (record == null) {
-//						record = new ClientChatRecord(client.getUserIdByName(text));
-//					}
-//					chatRecordMap.put(text,record);
-//					List<Message> messages = record.getMessages();
-//					int offset = 0;
-//					for (Message msg : messages) {
-//						String toDisplay = msg.toDisplay();
-//						if (msg.getSenderId() == client.getSelfId()) {
-//							// todo 如果是自己的话，移到右边
-//						}
-//						docs.insertString(offset, toDisplay , attrset);// 对文本进行追加
-//						offset += toDisplay.length();
-//					}
-//				} catch (BadLocationException e) {
-//					e.printStackTrace();
-//				} catch (IOException e) {
-//					System.out.println("Error on new ClientChatRecord: " + e);
-//				}
 			});
 		}
 
@@ -187,7 +148,7 @@ public class ClientUi implements Runnable{
 	public ClientUi(Client client) {
 		this.user = client.getSelf();
 		this.client = client;
-		this.chatRecordMap = new HashMap<>();
+
 
 		frame = new JFrame(user.getName());
 		frame.setVisible(true); // 可见

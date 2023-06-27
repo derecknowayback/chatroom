@@ -1,9 +1,13 @@
 package dto;
 
-
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -199,4 +203,176 @@ public class DBManager {
     public static List<User> findAllUsers() {
         return getByName(null);
     }
+
+
+
+    // 创建群组并添加成员
+    /**
+     * 创建群聊
+     * @param limit
+     * @param name
+     * @param users
+     * @return
+     * @throws SQLException
+     */
+    public static int createGroup(int limit, String name, List<Integer> memberIDs)  {
+        String memberIDsStr = String.join(",", memberIDs.stream().map(Object::toString).toArray(String[]::new));
+        String sql = "INSERT INTO `group` (`limit`, `groupMember`, `name`) VALUES (?, ?, ?)";
+        PreparedStatement stmt = null;
+        try{
+            stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, limit);
+            stmt.setString(2, memberIDsStr);
+            stmt.setString(3, name);
+            stmt.executeUpdate();
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            closeRsAndStatement(null,stmt);
+        }
+        return false;
+    }
+
+    /**
+     * 添加对应用户
+     * 添加成功返回true
+     * @param groupid
+     * @param user 添加的用户
+     * @return
+     * @throws SQLException
+     */
+    public static boolean addUserToGroup(int groupid, int userId)  {
+        // 查询原来的群组成员列表
+        String selectSql = "SELECT * FROM group where groupID = '" + groupid + "'";
+        PreparedStatement selectStmt = null;
+        ResultSet rs = null;
+        PreparedStatement updateStmt = null;
+        try {
+            selectStmt = connection.prepareStatement(selectSql);
+            rs = selectStmt.executeQuery();
+            if (!rs.next()) {
+                throw new SQLException("Group not found");
+            }
+            String oldMemberStr = rs.getString("groupMember");
+            String[] oldMemberIDs = oldMemberStr.split(",");
+            // 检查用户是否已经在群组中
+            for (String memberID : oldMemberIDs) {
+                if (memberID.equals(String.valueOf(userId))) {
+                    return true; // 用户已经在群组中，无需添加
+                }
+            }
+            // 添加用户到群组
+            String newMemberStr = oldMemberStr + "," + userId;
+            String updateSql = "UPDATE group SET groupMember = ? WHERE groupID = '" + groupid + "'";
+            updateStmt = connection.prepareStatement(updateSql);
+            updateStmt.setString(1, newMemberStr);
+            return updateStmt.executeUpdate() > 0;
+        } catch (SQLException e){
+            e.printStackTrace();
+        } finally {
+            closeRsAndStatement(rs,selectStmt);
+            closeRsAndStatement(null,updateStmt);
+        }
+        return false;
+    }
+
+    /**
+     * 删除用户
+     * 删除成员成功返回true
+     * @param groupID
+     * @param user
+     * @return
+     * @throws SQLException
+     */
+    public static boolean removeUserFromGroup(int groupID, User user) throws SQLException {
+        // 查询原来的群组成员列表
+        String selectSql = "SELECT * FROM `group` WHERE `groupID` = '"+groupID+"'";
+        PreparedStatement selectStmt = null;
+        ResultSet rs = null;
+        PreparedStatement updateStmt = null;
+        try  {
+            selectStmt = connection.prepareStatement(selectSql);
+            rs = selectStmt.executeQuery();
+            if (!rs.next()) {
+                throw new SQLException("Group not found");
+            }
+            String oldMemberStr = rs.getString("groupMember");
+            String[] oldMemberIDs = oldMemberStr.split(",");
+            // 检查用户是否在群组中
+            boolean found = false;
+            StringBuilder newMemberStrBuilder = new StringBuilder();
+            for (String memberID : oldMemberIDs) {
+                if (memberID.equals(String.valueOf(user.getId()))) {
+                    found = true;
+                } else {
+                    newMemberStrBuilder.append(memberID).append(",");
+                }
+            }
+            if (!found) {
+                return true; // 用户不在群组中，无需删除
+            }
+            String newMemberStr = newMemberStrBuilder.toString();
+            if (newMemberStr.endsWith(",")) {
+                newMemberStr = newMemberStr.substring(0, newMemberStr.length() - 1);
+            }
+            // 更新群组成员列表
+            String updateSql = "UPDATE group SET groupMember = ? WHERE groupID = '" + groupID + "'";
+            updateStmt = connection.prepareStatement(updateSql);
+            updateStmt.setString(1, newMemberStr);
+            return updateStmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            closeRsAndStatement(rs,selectStmt);
+            closeRsAndStatement(null,updateStmt);
+        }
+        return false;
+    }
+
+    // 查询指定群组的成员列表
+    /**
+     * 找对应群组的用户id
+     * 返回对应用户id的数组
+     * @param groupID
+     * @return
+     * @throws SQLException
+     */
+    public static int[] getGroupMembers(int groupID) {
+        String selectSql = "SELECT * FROM `group` WHERE `groupID` = '"+groupID+"'";
+        PreparedStatement selectStmt = null;
+        ResultSet rs = null;
+        try {
+            selectStmt = connection.prepareStatement(selectSql);
+            // selectStmt.setInt(1, groupID);
+            rs = selectStmt.executeQuery();
+            if (!rs.next()) {
+                throw new SQLException("Group not found");
+            }
+            String memberStr = rs.getString("groupMember");
+            String[] memberIDs = memberStr.split(",");
+            List<Integer> memberList = new ArrayList<>();
+            for (String memberID : memberIDs) {
+                memberList.add(Integer.parseInt(memberID));
+            }
+            int[] members = new int[memberList.size()];
+            for (int i = 0; i < memberList.size(); i++) {
+                members[i] = memberList.get(i);
+            }
+            return members;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            closeRsAndStatement(rs,selectStmt);
+        }
+        return null;
+    }
+
+    public static Group getGroupIdByName() {
+
+    }
+
+
+
 }

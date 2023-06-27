@@ -2,10 +2,8 @@ package net;
 
 import dto.Group;
 import dto.User;
-
 import java.util.HashMap;
 import java.util.List;
-import msg.GroupChatRecord;
 import msg.Message;
 
 public class GroupManager {

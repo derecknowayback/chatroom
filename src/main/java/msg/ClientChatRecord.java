@@ -1,21 +1,21 @@
 package msg;
 
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.OpenOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.io.*;
 
 /**
  *  一个ChatRecord是 "我"和另外一个用户的聊天记录
  */
 public class ClientChatRecord extends ChatRecord {
+
+    int versionId;
 
     int userId;  // 对方的id
 
@@ -27,7 +27,7 @@ public class ClientChatRecord extends ChatRecord {
     ObjectOutputStream writer;
     ObjectInputStream reader;
 
-    byte[] data;
+    String data;
 
     // 根据UserId选择对应的文件, 然后从磁盘上读取对应的文件
     // Tips: 如果没有文件就创建一个文件
@@ -41,8 +41,9 @@ public class ClientChatRecord extends ChatRecord {
         messages = new ArrayList<>();
         FileInputStream stream = new FileInputStream(fileName);
         try {
-                reader = new ObjectInputStream(stream);
-                Message message;
+            reader = new ObjectInputStream(stream);
+            versionId = reader.readInt();
+            Message message;
                 while ( (message = Message.readMsg(reader)) != null) {
                     messages.add(message);
                 }
@@ -50,10 +51,16 @@ public class ClientChatRecord extends ChatRecord {
             } catch (EOFException e) {
                 System.out.println("creat file...");
             }
-            writer = new ObjectOutputStream(new FileOutputStream(fileName,true));
+            writer = new ObjectOutputStream(new FileOutputStream(fileName,false));
     }
 
     public void writeRecord() {
+        try {
+            writer.writeInt(versionId);
+        } catch (IOException e){
+            e.printStackTrace();
+            return;
+        }
         for (Message msg : messages) {
             Message.writeMsg(msg, writer);
         }
@@ -70,12 +77,22 @@ public class ClientChatRecord extends ChatRecord {
         messages.add(message);
     }
 
-    public byte[] getData() {
-        //todo 将整个消息文件变为byte数组
+    public String getData() {
+        // 版本号 | 用户id | msg1 | msg2 | msg3
+        StringBuilder sb = new StringBuilder();
+        sb.append(versionId).append("|");
+        sb.append(userId).append("|");
+        for (int i = 0; i < messages.size(); i++) {
+            sb.append(messages);
+            if (i != messages.size() - 1) sb.append("|");
+        }
+        return sb.toString();
     }
 
-    public ClientChatRecord (byte[] data) {
+
+    public ClientChatRecord (String data) {
         // todo 从二进制数据创建一个Record
+
     }
 
 }

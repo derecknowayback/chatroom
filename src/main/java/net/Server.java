@@ -1,8 +1,16 @@
 package net;
 
 import dto.DBManager;
+import dto.Group;
 import dto.User;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -10,6 +18,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
+import msg.ClientChatRecord;
 import msg.GroupChatRecord;
 import msg.Message;
 import msg.ServerChatRecord;
@@ -24,7 +33,6 @@ public class Server implements Runnable {
 
    HashMap<Integer, GroupManager> groupHashMap;
 
-
    DatagramSocket socket;
 
     private Server () throws SocketException {
@@ -38,6 +46,26 @@ public class Server implements Runnable {
     @Override
     public void run() {
 
+        int refreshOnlineUser = 0;
+        byte[] bytes = new byte[1024];
+        DatagramPacket packet = new DatagramPacket(bytes, bytes.length);
+        while (true) {
+            try {
+                socket.receive(packet);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            byte[] data = packet.getData();
+            String payload = new String(data);
+            String[] dataString = payload.split(",", 2);
+            String typeString = dataString[0];
+            String messageString = dataString[1];
+
+
+
+
+
+        }
     }
 
     // 接收登录请求，添加用户到登录集合中, 顺便发送所有积压的请求
@@ -129,13 +157,15 @@ public class Server implements Runnable {
         }
     }
 
-    public void createGroup () {
-        // todo 创建群组
+    public void createGroup (String name,int level,List<Integer> memberIds) {
+        DBManager.createGroup(Group.getLimitByLevel(level), name, memberIds);
+
     }
 
 
     public void removeFromGroup (int userId) {
         // todo 将成员从群组中移除
+
     }
 
 
@@ -144,6 +174,112 @@ public class Server implements Runnable {
         serverChatRecord.writeRecord();
     }
 
+
+    // 现在开始处理一下用户记录的事情
+
+    public void handleClientChatRecord (int senderId,String data)  {
+        // 文件名: sendId_recvId
+        // 格式: 版本号 + 消息记录数 + 消息记录
+        String[] split = data.split("\\|");
+        int versionId = Integer.parseInt(split[0]);
+        int receiverId = Integer.parseInt(split[1]);
+        int oldId = getRecordVersionId(senderId, receiverId);
+        // 如果Server的版本大于现有的版本，不存
+        if (oldId > versionId) return;
+        // todo 这里不确定是否有消息，这样做是否会触发空指针
+        String fileName = System.getProperty("user.dir") + "/"+ senderId + "_" + receiverId;
+        ObjectOutputStream outputStream = null;
+        try {
+            outputStream = new ObjectOutputStream(new FileOutputStream(fileName, false));
+            outputStream.writeInt(versionId); // 写版本号
+            outputStream.writeInt(split.length - 2); // 写长度
+            for (int i = 2; i < split.length; i++) {
+                Message message = Message.marshall(split[i]);
+                outputStream.writeObject(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public int getRecordVersionId (int sendId,int recvId) {
+        String fileName = System.getProperty("user.dir") + "/" + sendId + "_" + recvId;
+        File f = new File(fileName);
+        if (!f.exists()) {
+            try {
+                f.createNewFile();
+                return -1;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        RandomAccessFile randomAccessFile = null;
+        try {
+            randomAccessFile = new RandomAccessFile(f, "r");
+            int versionId = randomAccessFile.readInt();
+            return versionId;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (randomAccessFile != null)
+                try {
+                    randomAccessFile.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+        }
+        return -1;
+    }
+
+    // 从磁盘上加载记录文件, 做好了
+    public void loadRecord(int userId) {
+        // 先获取
+        String workDir = System.getProperty("user.dir");
+        File file = new File(workDir);
+        File[] files = file.listFiles();
+        for (int i = 0; i < files.length; i++) {
+            File temp = files[i];
+            String fileName = temp.getName();
+            if (fileName.startsWith(String.valueOf(userId))) {
+                ObjectInputStream stream = null;
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    int receiverId = Integer.parseInt(fileName.substring(fileName.indexOf("_") + 1));
+                    stream = new ObjectInputStream(new FileInputStream(fileName));
+                    int versionId = stream.readInt();
+                    // todo 这里最后也append一个 | , 可能会制空
+                    sb.append(versionId).append("|").append(receiverId).append("|");
+                    int cnt = stream.readInt();
+                    for (int j = 0; j < cnt; j++) {
+                        Message msg = (Message)stream.readObject();
+                        sb.append(msg);
+                        if (j != cnt - 1) sb.append("|");
+                    }
+                    // 开始发送
+                    Proto pubSynMsg = Proto.getPubSynMsg(sb.toString());
+                    byte[] payload = pubSynMsg.toString().getBytes(StandardCharsets.UTF_8);
+                    DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, LoginStatus.getIP(userId), Client.CLIENT_PORT);
+                    socket.send(packet);
+                } catch (IOException | ClassNotFoundException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        stream.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
 
 
 }

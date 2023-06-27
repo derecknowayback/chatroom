@@ -2,7 +2,10 @@ import java.util.List;
 import java.util.Scanner;
 import org.junit.Test;
 
-import static dto.DBManager.*;
+import static dto.DBManager.checkUser;
+import static dto.DBManager.findAllUsers;
+import static dto.DBManager.findById;
+import static dto.DBManager.insertUser;
 
 public class DbManagerTest {
 

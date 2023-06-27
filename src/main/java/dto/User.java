@@ -89,4 +89,9 @@ public class User {
 	public String toString() {
 		return  id + "," + name + "," + isOnline +"|";
 	}
+
+	public String loginOrRegisterStr() {
+		return name + "," + password;
+	}
+
 }
