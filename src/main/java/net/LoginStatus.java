@@ -2,10 +2,8 @@ package net;
 
 import dto.User;
 import java.net.InetAddress;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
+
 
 /**
  *  全局类，只有一个实例，负责记录有哪些用户已经登录了，用户登录了会有ip记录
@@ -36,11 +34,4 @@ public class LoginStatus {
     public static boolean isOnline(int userId){
         return userIdMap.containsKey(userId);
     }
-
-    public static List<User> getAllUser () {
-        List<User> res = new ArrayList<>();
-        Set<Integer> integers = userIdMap.keySet();
-
-    }
-
 }

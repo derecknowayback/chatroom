@@ -27,6 +27,7 @@ public class ClientChatRecord extends ChatRecord {
     ObjectOutputStream writer;
     ObjectInputStream reader;
 
+    byte[] data;
 
     // 根据UserId选择对应的文件, 然后从磁盘上读取对应的文件
     // Tips: 如果没有文件就创建一个文件
@@ -68,5 +69,14 @@ public class ClientChatRecord extends ChatRecord {
     public void addMessages(Message message) {
         messages.add(message);
     }
+
+    public byte[] getData() {
+        //todo 将整个消息文件变为byte数组
+    }
+
+    public ClientChatRecord (byte[] data) {
+        // todo 从二进制数据创建一个Record
+    }
+
 }
 

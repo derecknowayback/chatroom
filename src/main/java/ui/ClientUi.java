@@ -9,7 +9,9 @@ import java.awt.Font;
 import java.awt.Toolkit;
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -53,9 +55,16 @@ public class ClientUi implements Runnable{
 	private JLabel infoName;
 	private JButton btnSend;
 
+	private final static String BtnTextSend = "Send";
+	private final static String BtnTextCreate = "Create";
+	private final static String BtnTextInvite = "Invite";
+	private final static String BtnTextLeave = "Leave";
+
 	private JButton createGroup;
 
 	private JButton addFriendToGroup;
+
+	private JButton leaveGroup;
 
 	private JPanel northPanel;
 	private JPanel southPanel;
@@ -114,9 +123,8 @@ public class ClientUi implements Runnable{
 					docs.remove(0,docs.getLength());
 					int offset = 0;
 					for (int i = 0; i < 1000; i++) {
-						String temp = "line " + i + " __________ \n";
-						docs.insertString(offset,temp,attrset);
-						offset += temp.length();
+						String temp = "line " + i;
+						offset = toDisplayString(temp,offset);
 					}
 				} catch (BadLocationException e) {
 					throw new RuntimeException(e);
@@ -152,6 +160,28 @@ public class ClientUi implements Runnable{
 		}
 	}
 
+
+	private int toDisplayString(String s,int offset) {
+		Document document = textShow.getDocument();
+		try {
+			s += "\n";
+			document.insertString(offset,s,attrset);
+			return offset + s.length();
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+		return -1;
+	}
+
+	private void truncateAndDisplay (String s) {
+		Document document = textShow.getDocument();
+		try {
+			document.remove(0, document.getLength());
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+		toDisplayString(s,0);
+	}
 
 	// 构造方法
 	public ClientUi(Client client) {
@@ -220,17 +250,25 @@ public class ClientUi implements Runnable{
 		createGroup = new JButton("Create Group");
 		createGroup.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
 		createGroup.setBounds(0,0,180,30);
-		createGroup.addActionListener(e -> btnSend.setText("Create"));
+		createGroup.addActionListener(e -> btnSend.setText(BtnTextCreate));
 
-		addFriendToGroup = new JButton("Add friend to group");
+		addFriendToGroup = new JButton("Invite");
 		addFriendToGroup.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
-		addFriendToGroup.setBounds(181,0,280,30);
-		addFriendToGroup.addActionListener(e -> btnSend.setText("Send Invitation"));
+		addFriendToGroup.setBounds(181,0,180,30);
+		addFriendToGroup.addActionListener(e -> btnSend.setText(BtnTextInvite));
+
+
+		leaveGroup = new JButton("Leave");
+		leaveGroup.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+		leaveGroup.setBounds(362,0,180,30);
+		leaveGroup.addActionListener(e -> btnSend.setText(BtnTextLeave));
+
 
 		southPanel.add(txtMsg);
 		southPanel.add(btnSend);
 		southPanel.add(createGroup);
 		southPanel.add(addFriendToGroup);
+		southPanel.add(leaveGroup);
 
 		centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftScroll, rightScroll);
 		centerSplit.setDividerLocation(200);
@@ -250,17 +288,39 @@ public class ClientUi implements Runnable{
 		frame.setLocation((screen_width - frame.getWidth()) / 2, (screen_height - frame.getHeight()) / 2);
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // todo 为了同步消息记录
 
+
 		// btn_send单击发送按钮时事件
-		btnSend.addActionListener(e -> {
-			// todo 检查是不是好友
+		btnSend.addActionListener (e -> {
 			String text = txtMsg.getText();
-			int userId = client.getUserIdByName(talkingTo);
-			Proto message = Proto.getNewMessage(text);
-			int type = 0;
-			try {
-				client.sendMsgToP(message.toString(),userId,type);
-			} catch (IOException ex) {
-				System.out.println("发送消息失败: " + ex);
+			switch (btnSend.getText()) {
+				case BtnTextSend : {
+					int userId = client.getUserIdByName(talkingTo);
+					Proto message = Proto.getNewMessage(text);
+					int type = 0;
+					try {
+						client.sendMsgToP(message.toString(),userId,type);
+					} catch (IOException ex) {
+						System.out.println("发送消息失败: " + ex);
+					}
+				} break;
+				case BtnTextCreate: {
+					String[] split = text.split("\n");
+					// 第一行GroupName, 第二行level, 第三行是你要邀请的用户名
+					List<String> usernames = Arrays.asList(split[2].split(","));
+					String errMsg = client.askForCreateGroup(split[0], Integer.parseInt(split[1]),usernames);
+					if(errMsg != null && errMsg.length() != 0)
+						truncateAndDisplay(errMsg);
+				} break;
+				case BtnTextInvite : {
+					String[] split = text.split(",");
+					List<String> usernames = Arrays.asList(split);
+					String errMsg = client.askForJoinGroup(talkingTo, usernames);
+					if(errMsg != null && errMsg.length() != 0)
+						truncateAndDisplay(errMsg);
+				} break;
+				case BtnTextLeave: {
+					client.askToLeaveGroup(talkingTo);
+				} break;
 			}
 		});
 

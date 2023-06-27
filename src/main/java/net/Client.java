@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import msg.ClientChatRecord;
 
 public class Client implements Runnable {
 
@@ -27,6 +28,8 @@ public class Client implements Runnable {
     HashSet<Integer> friends;
 
     HashMap<String,User> allUsers;
+
+    HashMap<String,Group> allGroups;
 
     User self;
 
@@ -256,7 +259,7 @@ public class Client implements Runnable {
         List<User> users = new ArrayList<>();
         users.add(self);
         for (String str : toInvites) {
-            User user = allUsers.get(toInvites);
+            User user = allUsers.get(str);
             if (! isFriend(user)) {
                 errMsg.append(user.getName()).append(" is not your friend, you can't invite he/she.");
             } else {
@@ -264,10 +267,72 @@ public class Client implements Runnable {
             }
         }
         Group group = new Group(groupName, groupLevel, users);
-        // todo 这里该发送请求了
+        // todo askForGroup 格式未定
+        Proto askForNewGroup = Proto.getAskForNewGroup(group.toString());
+        byte[] payload = askForNewGroup.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return errMsg.toString();
     }
 
+    public String askForJoinGroup(String groupName,List<String> usernames) {
+        StringBuilder errMsg = new StringBuilder(), toInvite = new StringBuilder();
+        toInvite.append(getGroupIdByName(groupName));
+        toInvite.append(self);
+        for (String str : usernames) {
+            User user = allUsers.get(str);
+            if (! isFriend(user)) {
+                errMsg.append(user.getName()).append(" is not your friend, you can't invite he/she.");
+            } else {
+                toInvite.append(user);
+            }
+        }
+        // todo 协议格式未定
+        Proto join = Proto.getAskToJoin(toInvite.toString());
+        byte[] payload = join.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return errMsg.toString();
+    }
 
+    public void askToLeaveGroup(String groupName) {
+        // todo 判断自己是不是这个群组的成员
+
+        StringBuilder msg = new StringBuilder();
+        msg.append(getSelfId());
+        msg.append(getGroupIdByName(groupName));
+        Proto leave = Proto.getNotifyToLeave(msg.toString());
+        byte[] payload = leave.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public int getGroupIdByName (String name) {
+        Group group = allGroups.get(name);
+        if (group == null) return -1;
+        return group.getGroupID();
+    }
+
+
+    public void askForSynChatRecord () {
+        //todo
+    }
+
+    private void sendChatRecord(ClientChatRecord record){
+        //todo
+    }
 
 }

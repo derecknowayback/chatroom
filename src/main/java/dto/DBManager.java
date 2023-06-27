@@ -17,6 +17,10 @@ public class DBManager {
 
     private static Connection connection;
 
+    private static final String loginFailedPrefix = "false" + ",";
+
+    private static final String loginSuccessPrefix = "success" + ",";
+
 
     //静态代码块
     static {
@@ -82,17 +86,17 @@ public class DBManager {
      */
     public static String checkUser(String name,String password) {
         if (name==null || password==null) {
-            return "false" + "," +NameOrPasswordNull;
+            return loginFailedPrefix +NameOrPasswordNull;
         }
         List<User> users = getByName(name);
         if (users.size() == 0) {
-            return "false" + "," +NoUserPrefix + name;
+            return loginFailedPrefix +NoUserPrefix + name;
         }
         User user = users.get(0);
         if (! user.getPassword().equals(password)) {
-            return "false" + "," + WrongPassword;
+            return loginFailedPrefix + WrongPassword;
         }
-        return "true" + "," +user.getId();
+        return loginSuccessPrefix +user.getId();
     }
 
 
@@ -161,13 +165,13 @@ public class DBManager {
      * @param password
      * @return
      */
-    public static User insertUser(String name,String password) {
+    public static String insertUser(String name,String password) {
         if (name == null || password == null){
-            return null;
+            return loginFailedPrefix + NameOrPasswordNull;
         }
         List<User> sameName = getByName(name);
         if (sameName.size() > 0) {
-            return null;
+            return loginFailedPrefix + "The username is occupied .";
         }
         PreparedStatement stmt = null;
         try {
@@ -178,8 +182,8 @@ public class DBManager {
             int count = stmt.executeUpdate();
             if(count < 0)
                 return null;
-            List<User> user = getByName(name);
-            return user.get(0);
+            List<User> users = getByName(name);
+            return loginSuccessPrefix + users.get(0).getId();
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {

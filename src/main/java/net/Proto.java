@@ -1,5 +1,8 @@
 package net;
 
+import java.util.List;
+import msg.ClientChatRecord;
+
 public class Proto {
 
     private int type;
@@ -118,12 +121,10 @@ public class Proto {
         return proto;
     }
 
-    public static Proto getRespForLogin (String errMsg) {
-        if (errMsg == null) {
-
-        }
-        Proto proto = new Proto(errMsg);
-
+    public static Proto getRespForLogin (String msg) {
+        Proto proto = new Proto(msg);
+        proto.type = RespForLogin;
+        return proto;
     }
 
 //群聊proto(无resp部分):
@@ -133,6 +134,7 @@ public class Proto {
         p.type = AskForNewGroup;
         return p;
     }
+
     public static Proto getAskToJoin(String message){
     //message: join_user info + group id
         Proto p = new Proto(message);
@@ -157,6 +159,12 @@ public class Proto {
     public static Proto getBacklogMsg (String message) {
         Proto p = new Proto(message);
         p.type = BacklogMsg;
+        return p;
+    }
+
+    public static Proto getSynMsg (ClientChatRecord chatRecord) {
+        Proto p = new Proto(new String(chatRecord.getData()));
+        p.type = SynMsg;
         return p;
     }
 

@@ -32,6 +32,7 @@ public class Server implements Runnable {
         groupChatRecordMap = new HashMap<>();
         groupHashMap = new HashMap<>();
         socket = new DatagramSocket();
+        users = DBManager.findAllUsers();
     }
 
     @Override
@@ -39,38 +40,49 @@ public class Server implements Runnable {
 
     }
 
-    // 接收请求，返回所有用户,并且判断用户是否登录
-    public void getAllUsers(){
-        // todo 调用数据库接口
-    }
-
     // 接收登录请求，添加用户到登录集合中, 顺便发送所有积压的请求
     // PS: 积压的请求发送完之后需要从文件中删除
-    public void acceptUser(String name, String password) {
+    public void acceptUser(String name, String password,InetAddress inetAddress) {
         String msg = DBManager.checkUser(name, password);
         String[] split = msg.split(",");
-        // 登录成功
         if (split[0].equals("true")) {
+            // 登录成功
             int userId = Integer.parseInt(split[1]);
-            // todo 发送响应
-
+            // 添加到登录用户中
+            User user = new User(Integer.parseInt(split[1]), name, inetAddress, true);
+            LoginStatus.addUser(user);
+            // 推送所有的用户
+            pubAllUsers(userId);
             // 推送积压的消息
             pubMsg(userId);
         }
-        // 登录失败
-        else {
-
+        Proto resp = Proto.getRespForLogin(msg);
+        byte[] payload = resp.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet= new DatagramPacket(payload, 0, payload.length, inetAddress, Client.CLIENT_PORT);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     // 接收注册请求，添加用户到登录集合中
-    public void createUser (String name, String password) {
-        User user = DBManager.insertUser(name, password);
-        // 插入失败, 可能是因为同名 ?
-        if (user == null) {
-
+    public void createUser (String name, String password,InetAddress inetAddress) {
+        String msg = DBManager.insertUser(name, password);
+        String[] split = msg.split(",");
+        if (split[0].equals("true")) {
+            User user = new User(Integer.parseInt(split[1]), name, inetAddress, true);
+            LoginStatus.addUser(user);
+            users.add(user);
         }
-
+        Proto resp = Proto.getRespForLogin(msg);
+        byte[] payload = resp.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet= new DatagramPacket(payload, 0, payload.length, inetAddress, Client.CLIENT_PORT);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -80,7 +92,7 @@ public class Server implements Runnable {
         serverChatRecord.addMessages(message);
     }
 
-    // 发送暂存消息请求，发送给每个
+    // 发送暂存消息请求
     public void pubMsg(int userId) {
         InetAddress ip = LoginStatus.getIP(userId);
         List<Message> toPub = serverChatRecord.getAllMsgByUserId(userId);
@@ -94,15 +106,44 @@ public class Server implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // todo 没有重新写回磁盘
     }
 
-    public void pubAllUsers () {
-
+    public void pubAllUsers (int userId) {
+        InetAddress inetAddress = LoginStatus.getIP(userId);
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < users.size(); i++) {
+            User temp = users.get(i);
+            if (LoginStatus.isOnline(temp.getId()))
+                temp.setOnline(true);
+            builder.append(temp);
+            if (i != users.size() - 1) builder.append("|");
+        }
+        Proto pub = Proto.getRespForAllUsers(builder.toString());
+        byte[] payload = pub.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, inetAddress, Client.CLIENT_PORT);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
+    public void createGroup () {
+        // todo 创建群组
+    }
+
+
+    public void removeFromGroup (int userId) {
+        // todo 将成员从群组中移除
+    }
+
 
 
     public void flushMsg() {
         serverChatRecord.writeRecord();
     }
+
+
 
 }
