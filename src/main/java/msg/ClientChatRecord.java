@@ -7,7 +7,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -24,45 +26,47 @@ public class ClientChatRecord extends ChatRecord {
     static final String FILE_PREFIX = System.getProperty("user.dir") + "\\"+ "chat_record_"; // 磁盘上的文件名的前缀
 
     // 一个file，用来持久化消息记录, 文件名是 "chat_record_{userId}"，这里userId就是对方的id
-    ObjectOutputStream writer;
-    ObjectInputStream reader;
-
-    String data;
+    RandomAccessFile raf;
 
     // 根据UserId选择对应的文件, 然后从磁盘上读取对应的文件
     // Tips: 如果没有文件就创建一个文件
     public ClientChatRecord (int userId) throws IOException {
         this.userId = userId;
-        String fileName = FILE_PREFIX + userId;
+        String fileName = FILE_PREFIX + userId + ".txt";
         File file = new File(fileName);
         if (!file.exists()) {
             file.createNewFile();
         }
         messages = new ArrayList<>();
-        FileInputStream stream = new FileInputStream(fileName);
+        raf = new RandomAccessFile(fileName,"rw");
+        versionId = 0;
         try {
-            reader = new ObjectInputStream(stream);
-            versionId = reader.readInt();
-            Message message;
-                while ( (message = Message.readMsg(reader)) != null) {
-                    messages.add(message);
-                }
-                reader.close();
-            } catch (EOFException e) {
-                System.out.println("creat file...");
+            versionId = raf.readInt();
+            while (true)  {
+                Message message = Message.readMsg(raf);
+                messages.add(message);
             }
-            writer = new ObjectOutputStream(new FileOutputStream(fileName,false));
+            } catch (EOFException e) {
+                System.out.println("read done ...");
+        }
     }
 
     public void writeRecord() {
         try {
-            writer.writeInt(versionId);
+            raf.setLength(0);
+            raf.seek(0);
+            raf.writeInt(1);
         } catch (IOException e){
             e.printStackTrace();
             return;
         }
         for (Message msg : messages) {
-            Message.writeMsg(msg, writer);
+            Message.writeMsg(msg, raf);
+        }
+        try {
+            raf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -83,24 +87,24 @@ public class ClientChatRecord extends ChatRecord {
         sb.append(versionId).append("|");
         sb.append(userId).append("|");
         for (int i = 0; i < messages.size(); i++) {
-            sb.append(messages);
+            Message msg = messages.get(i);
+            sb.append(msg);
             if (i != messages.size() - 1) sb.append("|");
         }
         return sb.toString();
     }
 
 
-    public ClientChatRecord (String data) {
-        // todo 从二进制数据创建一个Record
-
+    public void  toReplace(int versionId, List<Message> messages) {
+        if (this.versionId < versionId) {
+            this.versionId = versionId;
+            this.messages = messages;
+        }
     }
 
     public void clear() {
         try {
-            writer.close();
-            String fileName = FILE_PREFIX + userId;
-            File file = new File(fileName);
-            if (file.exists()) file.delete();
+          raf.setLength(0);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.List;
 /*
@@ -25,14 +26,12 @@ public class GroupChatRecord extends ChatRecord{
 	
 	static final String FILE_PREFIX = System.getProperty("user.dir") + "\\" + "group_record_";
 	
-	ObjectOutputStream writer;
-	ObjectInputStream reader;
+    RandomAccessFile raf;
 	
 
     public GroupChatRecord (int groupId) throws IOException {
     	
         this.groupId = groupId;
-        
         String fileName = FILE_PREFIX + groupId;
         
         File file = new File(fileName);
@@ -41,23 +40,33 @@ public class GroupChatRecord extends ChatRecord{
         }
         
         messages = new ArrayList<>();
-        FileInputStream stream = new FileInputStream(fileName);
+        raf = new RandomAccessFile(fileName,"rw");
+        Message message;
         try {
-                reader = new ObjectInputStream(stream);
-                Message message;
-                while ( (message = Message.readMsg(reader)) != null) {
-                    messages.add(message);
-                }
-                reader.close();
-            } catch (EOFException e) {
-                System.out.println("create file...");
+            while (true) {
+                message = Message.readMsg(raf);
+                messages.add(message);
             }
-            writer = new ObjectOutputStream(new FileOutputStream(fileName,false));
+        } catch (EOFException e) {
+            System.out.println("read done ...");
+        }
     }
 
     public void writeRecord() {
+        try {
+            raf.setLength(0);
+            raf.seek(0);
+        } catch (IOException e){
+            e.printStackTrace();
+            return;
+        }
         for (Message msg : messages) {
-            Message.writeMsg(msg, writer);
+            Message.writeMsg(msg, raf);
+        }
+        try {
+            raf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

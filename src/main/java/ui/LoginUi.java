@@ -1,5 +1,6 @@
 package ui;
 
+import dto.User;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -44,7 +45,6 @@ public class LoginUi extends JFrame {
     public LoginUi()  {
         try {
             client = new Client();
-            client.getServerAddrByConfig();
         } catch (Exception e) {
             System.out.println("Client init failed: " + e);
             System.exit(-1);
@@ -102,30 +102,31 @@ public class LoginUi extends JFrame {
                 String name = userName.getText();
                 String pwd = String.valueOf(password.getPassword());
                 // 发请求，验证登录
+                User user = new User(name, pwd);
+                client.setSelf(user);
                 client.askForLogin(name,pwd);
-                while (!client.getIsLogin()) {
-                    try {
-                        // 等待server的响应
-                        client.wait();
-                        // 查看结果
-                        String errMsg = client.getLoginFailedMsg();
+                try {
+                    Thread.sleep(1000 * 3);
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+                if (!client.getIsLogin()) {
+                    // 查看结果
+                    String errMsg = client.getLoginFailedMsg();
                         if (errMsg != null) {
                             labelError.setText(errMsg);
-                            break;
                         }
-                    } catch (InterruptedException ex) {
-                        ex.printStackTrace();
-                    }
                 }
-                if (client.getIsLogin()) {
+                else  {
                     dispose();
                     ClientUi ui = new ClientUi(client);
+                    Thread thread = new Thread(ui);
+                    thread.start();
                 }
             }
         });
 
 
-        //
         btnRegister = new JButton("注册");
         btnRegister.setBounds(37, 305, 170, 40);
         btnRegister.setFocusPainted(false);
@@ -139,23 +140,23 @@ public class LoginUi extends JFrame {
             // 发请求 申请注册
             String name = userName.getText();
             String pwd = String.valueOf(password.getPassword());
+            User user = new User(name, pwd);
+            client.setSelf(user);
             // 发请求，验证登录
             client.askForRegister(name,pwd);
-            while (!client.getIsLogin()) {
-                try {
-                    // 等待server的响应
-                    client.wait();
-                    // 查看结果
-                    String errMsg = client.getLoginFailedMsg();
-                    if (errMsg != null) {
-                        labelError.setText(errMsg);
-                        break;
-                    }
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
+            try {
+                Thread.sleep(3 * 1000);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+            if (!client.getIsLogin()) {
+                // 查看结果
+                String errMsg = client.getLoginFailedMsg();
+                if (errMsg != null) {
+                    labelError.setText(errMsg);
                 }
             }
-            if (client.getIsLogin()) {
+           else  {
                 dispose();
                 ClientUi ui = new ClientUi(client);
                 Thread clientThread1 = new Thread(ui);

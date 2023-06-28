@@ -3,13 +3,15 @@ package msg;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
  *  Message 一条消息
  */
-public class Message implements Serializable {
+public class Message {
 
     private int senderId; // 发送人的id
     private int receiverId; // 接收者的id
@@ -58,21 +60,33 @@ public class Message implements Serializable {
 
 
     // 将一条消息写入到指定文件中
-    public static void writeMsg(Message msg, ObjectOutputStream outputStream) {
+    public static void writeMsg(Message msg, RandomAccessFile raf) {
         try {
-            outputStream.writeObject(msg);
-            outputStream.flush();
+            raf.writeInt(msg.senderId);
+            raf.writeInt(msg.receiverId);
+            byte[] bytes = msg.getContent().getBytes(StandardCharsets.UTF_8);
+            raf.writeInt(bytes.length);
+            raf.write(bytes);
+            byte[] bytes1 = msg.getTime().getBytes(StandardCharsets.UTF_8);
+            raf.writeInt(bytes1.length);
+            raf.write(bytes1);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static Message readMsg(ObjectInputStream inputStream) {
-        try {
-            return (Message) inputStream.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            return null;
-        }
+    public static Message readMsg(RandomAccessFile raf) throws IOException {
+            int senderId = raf.readInt();
+            int receiverId = raf.readInt();
+            int contentLen = raf.readInt();
+            byte[] contentBytes = new byte[contentLen];
+            raf.read(contentBytes);
+            String content = new String(contentBytes);
+            int timeLen = raf.readInt();
+            byte[] timeBytes = new byte[timeLen];
+            raf.read(timeBytes);
+            String time = new String(timeBytes);
+            return new Message(senderId, receiverId, content, time);
     }
 
     @Override

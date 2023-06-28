@@ -1,5 +1,6 @@
 package ui;
 
+import dto.Group;
 import dto.User;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -7,8 +8,9 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
-import java.net.SocketException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -27,17 +29,14 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
-import msg.ClientChatRecord;
 import msg.Message;
 import net.Client;
-import net.Proto;
 
 public class ClientUi implements Runnable{
 
 
-    public static void main(String[] args) throws SocketException, InterruptedException {
+    public static void main(String[] args) throws IOException {
 		Client cli = new Client();
-		cli.setSelf(new User("ccc","11"));
 		ClientUi ui = new ClientUi(cli);
 		Thread thread = new Thread(ui);
 		thread.start();
@@ -78,8 +77,6 @@ public class ClientUi implements Runnable{
 	private DefaultListModel<MyBut> listModel;
 	private JList<MyBut> userList;
 
-	static private HashMap<String,MyBut> map = new HashMap<>();
-
 	private JPanel leftPanel = new JPanel();
 
 	private User user;
@@ -87,42 +84,87 @@ public class ClientUi implements Runnable{
 
 	private String talkingTo;
 
+	HashMap<String,MyBut> myButMap;
+
+	// 用户不能和群组同名
+	// 用户 群组 之间不能有同名的
+
+	public static final Color GROUP_COLOR = Color.ORANGE;
+	public static final Color USER_COLOR = Color.GREEN;
+
+
+	public int getY () {
+		// 一个50,
+		// 0 51 102
+		return (myButMap.size() - 1) * 50 + (myButMap.size() - 1);
+	}
+
+	public void refreshButtons() {
+		HashMap<String, Group> allGroups = client.getAllGroups();
+		HashMap<String, User> users = client.getAllUsers();
+		for (String groupName : allGroups.keySet()) {
+			if (!myButMap.containsKey(groupName)) {
+				MyBut but = new MyBut(groupName,true);
+				but.setBounds(0,getY(), 170, 50);
+				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+				but.setForeground(Color.BLUE);
+				but.setBackground(GROUP_COLOR);
+				leftPanel.add(but);
+				myButMap.put(groupName,but);
+			}
+		}
+		for (String userName : users.keySet()) {
+			if (!myButMap.containsKey(userName)) {
+				MyBut but = new MyBut(userName,false);
+				but.setBounds(0,getY(), 170, 50);
+				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
+				but.setForeground(Color.BLUE);
+				but.setBackground(USER_COLOR);
+				leftPanel.add(but);
+				myButMap.put(userName,but);
+			}
+		}
+	}
+
+
 	@Override
 	public void run() {
 		while (true) {
-
+			refreshButtons();
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
 	class MyBut extends JButton {
-
 		boolean isGroup;
 
 		public MyBut(String text,boolean isGroup) {
 			super(text);
 			this.isGroup = isGroup;
 			addActionListener(a -> {
-				talkingTo = text;
-				// todo 下方的send button 也要改变
-
-				// 如果不是群组的话
-				if (!isGroup) {
-					List<Message> messages = client.getRecordByName(talkingTo);
-					Document docs = textShow.getDocument();
-					try {
-						int offset = 0;
-						docs.remove(0,docs.getLength());
-						for (Message msg : messages) {
-							String toDisplay = msg.toDisplay();
-							offset = toDisplayString(toDisplay,offset);
-						}
-					} catch (BadLocationException e) {
-						e.printStackTrace();
-					}
-				} else {
-					List<Message> messages = ;
+				talkingTo = this.getText();
+				Document docs = textShow.getDocument();
+				try {
+					docs.remove(0,docs.getLength());
+				} catch (BadLocationException e) {
+					throw new RuntimeException(e);
 				}
-
+				List<Message> messages;
+				// 如果不是群组的话
+				if (!this.isGroup) {
+					messages = client.getRecordByName(talkingTo);
+				} else {
+					messages = client.getGroupRecordByName(talkingTo);
+				}
+				int offset = 0;
+				for (Message msg : messages) {
+					String toDisplay = msg.toDisplay();
+					offset = toDisplayString(toDisplay,offset);
+				}
 			});
 		}
 
@@ -166,7 +208,7 @@ public class ClientUi implements Runnable{
 	public ClientUi(Client client) {
 		this.user = client.getSelf();
 		this.client = client;
-
+		this.myButMap = new HashMap<>();
 
 		frame = new JFrame(user.getName());
 		frame.setVisible(true); // 可见
@@ -274,20 +316,27 @@ public class ClientUi implements Runnable{
 			switch (btnSend.getText()) {
 				case BtnTextSend : {
 					// todo 判断这是不是一个群 ?
-
+					boolean isGroup = myButMap.get(talkingTo).isGroup;
 					try {
 						boolean isResp4Friend = isRespMakeFriend();
-						if (isResp4Friend) {
-							if ("Yes".equals(text)) {
-								client.addFriend(talkingTo);
+						if (!isGroup) {
+							if (isResp4Friend) {
+								if ("Yes".equals(text)) {
+									this.client.addFriend(talkingTo); // 如果我同意了, 加入到好友列表
+								} else {
+									this.client.clearRecord(talkingTo); // 如果我不同意，清除所有的消息
+								}
+								this.client.sendMsgToP(text,talkingTo,true);
 							} else {
-								client.clearRecord(talkingTo);
+								this.client.sendMsgToP(text,talkingTo,false); // 好友申请和普通消息一样处理
 							}
-							client.sendMsgToP(text,talkingTo,true);
 						} else {
-							client.sendMsgToP(text,talkingTo,false);
+							if (this.client.isMember(talkingTo)) {
+								this.client.sendMsgToG(text,talkingTo);
+							} else {
+								truncateAndDisplay("You are not in the group");
+							}
 						}
-
 					} catch (IOException ex) {
 						System.out.println("发送消息失败: " + ex);
 					}
@@ -315,6 +364,16 @@ public class ClientUi implements Runnable{
 
 		leftPanel.setLayout(null);
 		leftPanel.setPreferredSize(new Dimension(200,2000));
+
+
+		frame.addWindowListener(new WindowAdapter() {
+				@Override
+				public void windowClosing(WindowEvent e) {
+					// todo 等待完善
+					System.out.println("on close///");
+				}
+			}
+		);
 	}
 
 }

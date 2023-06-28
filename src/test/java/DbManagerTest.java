@@ -1,57 +1,121 @@
-import java.util.List;
-import java.util.Scanner;
-import org.junit.Test;
 
-import static dto.DBManager.checkUser;
-import static dto.DBManager.findAllUsers;
-import static dto.DBManager.findById;
-import static dto.DBManager.insertUser;
+import dto.DBManager;
+import dto.Group;
+import dto.User;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class DbManagerTest {
 
 
+
+
     @Test
-    public void testDbManager() {
-        Scanner sc = new Scanner(System.in);
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("请输入一个整数（1/2/3/4） 1：check 2：insert 3：find allusers 4: find userbyid");
-        int num = scanner.nextInt();
-        switch (num) {
-            case 1:
-                System.out.println("请输入用户名：");
-                String name = sc.nextLine();
-                System.out.println("请输入密码：");
-                String password = sc.nextLine();
-                if (checkUser(name, password)) {
-                    System.out.println("登录成功！");
-                } else {
-                    System.out.println("用户名或密码错误！");
-                }
-                break;
-            case 2:
-                System.out.println("请输入姓名：");
-                String pname = sc.nextLine();
-                System.out.println("请输入密码：");
-                String ppassword = sc.nextLine();
-                if (insertUser(pname, ppassword))
-                    System.out.println("添加成功");
-                else
-                    System.out.println("添加失败");
-                break;
-            case 3:
-                List users = findAllUsers();
-                System.out.println(users);
-                break;
-            case 4:
-                System.out.println("请输入id：");
-                int findid = Integer.parseInt(sc.nextLine());
-                List user = findById(findid);
-                System.out.println(user);
-                break;
-            default:
-                System.out.println("无效的输入！");
+    public void testCheckUser() {
+        String s = DBManager.checkUser("user1", "password1");
+        String[] split = s.split(",");
+        Assert.assertEquals(split[0],"true");
+        Assert.assertEquals(split[1],"1");
+
+        s = DBManager.checkUser("user1","password");
+        split = s.split(",");
+        Assert.assertEquals(split[0],"false");
+    }
+
+    @Test
+    public void testGetByName() {
+        List<User> res = DBManager.getByName("user1");
+        User user = new User(1, "user1", null);
+        Assert.assertEquals(1, res.size());
+        Assert.assertEquals(user, res.get(0));
+
+        res = DBManager.getByName("user3");
+        Assert.assertEquals(0, res.size());
+    }
+
+
+    @Test
+    public void testInsertUser () {
+        String resMsg = DBManager.insertUser("user1", "1234");
+        String[] split = resMsg.split(",");
+        Assert.assertEquals("false",split[0]);
+        Assert.assertEquals("The username is occupied .",split[1]);
+
+        String resMsg1 = DBManager.insertUser("user1", null);
+        String[] split1 = resMsg1.split(",");
+        Assert.assertEquals("false",split1[0]);
+        Assert.assertEquals("name and password are required .",split1[1]);
+
+
+        String resMsg2 = DBManager.insertUser("user3", "1234");
+        String[] split2 = resMsg2.split(",");
+        Assert.assertEquals("true",split2[0]);
+        Assert.assertEquals("3",split2[1]);
+    }
+
+    @Test
+    public void testFindAllUsers () {
+        List<User> users = DBManager.findAllUsers();
+        Assert.assertEquals(3,users.size());
+        for (int i = 0; i < users.size(); ++i) {
+            User user = users.get(i);
+            System.out.println(user);
         }
     }
+
+    @Test
+    public void testCreateGroup () {
+        List<Integer> ids = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            ids.add(i);
+        }
+        int groupId = DBManager.createGroup(10,"group3",ids);
+        Assert.assertEquals(groupId,3);
+    }
+
+    @Test
+    public void testAddUserToGroup () {
+        boolean b = DBManager.addUserToGroup(1, 7);
+        Assert.assertTrue(b);
+
+        b = DBManager.addUserToGroup(1,7);
+        Assert.assertTrue(b);
+
+        b = DBManager.addUserToGroup(3,10);
+        Assert.assertFalse(b);
+    }
+
+    @Test
+    public void testRemoveUserFromGroup () {
+        boolean b = DBManager.addUserToGroup(1, 7);
+        Assert.assertTrue(b);
+
+        b = DBManager.removeUserFromGroup(1, 7);
+        Assert.assertTrue(b);
+
+        int[] members = DBManager.getGroupMembers(1);
+        for (int i = 0; i < members.length; i++) {
+            Assert.assertNotEquals(members[i],7);
+        }
+    }
+
+    @Test
+    public void testGetGroupMembers () {
+        int[] members = DBManager.getGroupMembers(2);
+        Assert.assertEquals(members.length,4);
+    }
+
+    @Test
+    public void testGetAllGroups() {
+        List<Group> groups = DBManager.getAllGroups();
+        Assert.assertEquals(groups.size(),3);
+        for (int i = 0; i < groups.size(); i++) {
+            System.out.println(groups.get(i));
+        }
+    }
+
 
 }
 

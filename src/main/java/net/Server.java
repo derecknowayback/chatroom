@@ -24,7 +24,7 @@ import msg.ServerChatRecord;
 
 public class Server implements Runnable {
 
-    List<User> users; // 全部的用户
+    HashMap<Integer,User> users; // 全部的用户
 
     ServerChatRecord serverChatRecord;
 
@@ -34,86 +34,192 @@ public class Server implements Runnable {
 
    DatagramSocket socket;
 
+   public static final int DEFAULT_PORT = 8080;
+
+    public static void main(String[] args) throws SocketException {
+        Server server = new Server();
+        Thread thread = new Thread(server);
+        thread.start();
+    }
+
     private Server () throws SocketException {
         serverChatRecord = ServerChatRecord.getServerChatRecord();
         groupChatRecordMap = new HashMap<>();
         groupHashMap = new HashMap<>();
-        socket = new DatagramSocket();
-        users = DBManager.findAllUsers();
+        socket = new DatagramSocket(DEFAULT_PORT);
+        users = new HashMap<>();
+        List<User> allUsers = DBManager.findAllUsers();
+        for (int i = 0; i < allUsers.size(); i++) {
+            users.put(allUsers.get(i).getId(),allUsers.get(i));
+        }
+        List<Group> groups = DBManager.getAllGroups();
+        for (int i = 0; i < groups.size(); i++) {
+            Group group = groups.get(i);
+            groupHashMap.put(group.getName(),group);
+        }
     }
 
     @Override
     public void run() {
-
-        int refreshOnlineUser = 0;
-        byte[] bytes = new byte[1024 * 1000];
-        DatagramPacket packet = new DatagramPacket(bytes, bytes.length);
+        byte[] bytes = new byte[1024];
         while (true) {
+            DatagramPacket packet = new DatagramPacket(bytes, bytes.length);
             try {
                 socket.receive(packet);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             InetAddress address = packet.getAddress();
-            String payload = new String(packet.getData());
-            String[] dataString = payload.split(",", 2);
+            String payload = new String(bytes,0, packet.getLength());
+            System.out.println(payload);
+            String[] dataString = payload.split(";", 2);
             int type = Integer.parseInt(dataString[0]);
             String message= dataString[1];
             switch (type) {
                 case Proto.AskForLogin: {
+                    System.out.println("收到了 AskForLogin " + message);
                     String[] split = message.split(",");
                     acceptUser(split[0],split[1],address);
                 } break;
                 case Proto.AskForRegister: {
+                    System.out.println("收到了 AskForRegister " + message);
                     String[] split = message.split(",");
                     createUser(split[0],split[1],address );
                 } break;
                 case Proto.AskForSaveMsg: {
+                    System.out.println("收到了 AskForSaveMsgr " + message);
                     String[] split = message.split("\\|");
                     Message msg = new Message(Integer.parseInt(split[0]), Integer.parseInt(split[1]), split[2], split[3]);
                     serverChatRecord.addMessages(msg);
                 } break;
                 case Proto.SynMsg: {
+                    System.out.println("收到了 SynMsg " + message);
                     String[] split = message.split("\\|", 2);
                     handleSynMsg(Integer.parseInt(split[0]),split[1]);
                 } break;
                 case Proto.AskForMakeFriend:
                 case Proto.RespForMakeFriend: {
+                    System.out.println("收到了 AskForMakeFriend | RespForMakeFriend  " + message);
                     String[] split = message.split("\\|",4);
                     Message msg = new Message(Integer.parseInt(split[0]), Integer.parseInt(split[1]), split[2], split[3]);
                     serverChatRecord.addMessages(msg);
                 } break;
                 case Proto.AskForNewGroup: {
+                    System.out.println("收到了 AskForNewGroup  " + message);
                     String[] split = message.split("\\|", 3);
                     String[] idStrs = split[2].split(",");
                     List<Integer> ids = new ArrayList<>();
                     for (String str : idStrs)
                         ids.add(Integer.parseInt(str));
                     createGroup(split[0],Integer.parseInt(split[1]),ids);
-                    // todo 只改了数据库，内存没改
+                    broadcastGroupsInfo();
                 } break;
                 case Proto.AskToJoinGroup: {
+                    System.out.println("收到了 AskToJoinGroup  " + message);
                     String[] split = message.split("\\|", 2);
                     String[] idStrs = split[1].split(",");
                     for (String str : idStrs){
                         int id = Integer.parseInt(str);
                         joinGroup(split[0],id);
-                        // todo 只改了数据库，内存没改
+                        Group group = groupHashMap.get(split[0]);
+                        group.addMember(id);
+                        broadcastGroupsInfo();
                     }
                 } break;
                 case Proto.AskToLeave: {
+                    System.out.println("收到了 AskToLeave  " + message);
                     String[] split = message.split("\\|", 2);
                     //message: sender_id | group_name
                     removeFromGroup(split[1],Integer.parseInt(split[0]));
-//                    todo 只改了数据库，内存没改
+                    Group group = groupHashMap.get(split[1]);
+                    group.removeUser(Integer.parseInt(split[0]));
+                    broadcastGroupsInfo();
                 } break;
                 case Proto.NewGroupMessage: {
-                    String[] split = message.split("\\|", 3);
-                    // todo 把这条消息记录插到Group里面
+                    System.out.println("收到了 NewGroupMessage  " + message);
+                    String[] split = message.split("\\|", 4);
+                    GroupChatRecord record = groupChatRecordMap.get(split[1]);
+                    Group group = groupHashMap.get(split[1]);
+                    if (record == null) {
+                        try {
+                            record = new GroupChatRecord(group.getGroupID());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            break;
+                        }
+                    }
+                    Message msg = new Message(Integer.parseInt(split[0]), 0, split[2], split[3]);
+                    record.addMessages(msg);
+                    broadcastGroupMessage(split[1]);
                 } break;
             }
         }
     }
+
+
+    public void broadcastGroupsInfo() {
+        for (int userId : users.keySet()) {
+            User user = users.get(userId);
+            if (user.isOnline()) {
+                pubGroupInfo(user.getIp());
+            }
+        }
+    }
+
+    public void pubGroupInfo (InetAddress address) {
+        StringBuilder sb = new StringBuilder();
+        for (String name : groupHashMap.keySet()) {
+            Group group = groupHashMap.get(name);
+            sb.append(group).append("|");
+        }
+        Proto groups = Proto.getRespForAllGroups(sb.toString());
+        byte[] payload = groups.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, address, Client.CLIENT_PORT);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void broadcastGroupMessage (String groupName) {
+        Group group = groupHashMap.get(groupName);
+        for (int userId : users.keySet()) {
+            User user = users.get(userId);
+            // 用户在线 && 用户是小组成员
+            if (user.isOnline() && group.isMember(userId)) {
+                pubGroupMessage(groupName,user.getIp());
+            }
+        }
+    }
+
+    public void pubGroupMessage (String name,InetAddress address) {
+        Group group = groupHashMap.get(name);
+        GroupChatRecord record = groupChatRecordMap.get(name);
+        if (record == null) {
+            try {
+                record = new GroupChatRecord(group.getGroupID());
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        List<Message> messages = record.getMessages();
+        for (int i = 0; i < messages.size(); i++) {
+            sb.append(messages).append("|");
+        }
+        Proto synGroupMessages = Proto.getSynGroupMessages(sb.toString());
+        byte[] payload = synGroupMessages.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, address, Client.CLIENT_PORT);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     // 接收登录请求，添加用户到登录集合中, 顺便发送所有积压的请求
     // PS: 积压的请求发送完之后需要从文件中删除
@@ -127,10 +233,11 @@ public class Server implements Runnable {
             User user = new User(Integer.parseInt(split[1]), name, inetAddress, true);
             LoginStatus.addUser(user);
             // 推送所有的用户
-            pubAllUsers(userId);
+            broadcastAllUsers();
             // 推送积压的消息
             pubMsg(userId);
-            // todo 发送消息记录
+            // 发送消息记录
+            loadRecord(userId);
         }
         Proto resp = Proto.getRespForLogin(msg);
         byte[] payload = resp.toString().getBytes(StandardCharsets.UTF_8);
@@ -149,7 +256,7 @@ public class Server implements Runnable {
         if (split[0].equals("true")) {
             User user = new User(Integer.parseInt(split[1]), name, inetAddress, true);
             LoginStatus.addUser(user);
-            users.add(user);
+            users.put(user.getId(),user);
         }
         Proto resp = Proto.getRespForLogin(msg);
         byte[] payload = resp.toString().getBytes(StandardCharsets.UTF_8);
@@ -173,7 +280,9 @@ public class Server implements Runnable {
         InetAddress ip = LoginStatus.getIP(userId);
         List<Message> toPub = serverChatRecord.getAllMsgByUserId(userId);
         StringBuilder content = new StringBuilder();
-        toPub.forEach(content::append);
+        for (int i = 0; i < toPub.size(); i++) {
+            content.append(toPub.get(i)).append("|");
+        }
         Proto proto = Proto.getBacklogMsg(content.toString());
         byte[] bytes = proto.toString().getBytes(StandardCharsets.UTF_8);
         DatagramPacket packet = new DatagramPacket(bytes, 0, bytes.length, ip, Client.CLIENT_PORT);
@@ -185,15 +294,24 @@ public class Server implements Runnable {
         // todo 没有重新写回磁盘
     }
 
-    public void pubAllUsers (int userId) {
+
+    public void broadcastAllUsers () {
+        for (int userId : users.keySet()) {
+            User user = users.get(userId);
+            if (user.isOnline()) {
+                pubAllUsersToOne(userId);
+            }
+        }
+    }
+
+    public void pubAllUsersToOne (int userId) {
         InetAddress inetAddress = LoginStatus.getIP(userId);
         StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < users.size(); i++) {
-            User temp = users.get(i);
+        for (int uid : users.keySet()) {
+            User temp = users.get(uid);
             if (LoginStatus.isOnline(temp.getId()))
                 temp.setOnline(true);
-            builder.append(temp);
-            if (i != users.size() - 1) builder.append("|");
+            builder.append(temp).append("|");
         }
         Proto pub = Proto.getRespForAllUsers(builder.toString());
         byte[] payload = pub.toString().getBytes(StandardCharsets.UTF_8);

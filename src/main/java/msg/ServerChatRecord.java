@@ -5,22 +5,21 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ServerChatRecord extends ChatRecord {
 
-    public static final String filename = System.getProperty("user.dir") + "\\" + "server_chat_record";
+    public static final String filename = System.getProperty("user.dir") + "\\" + "server_chat_record" + ".txt";
 
     List<Message> messages; // 存储积压的消息;
 
     // 单例
     static ServerChatRecord serverChatRecord;
 
-    ObjectOutputStream writer;
-    ObjectInputStream reader;
+    RandomAccessFile raf;
 
     // 初始化 serverChatRecord
     static {
@@ -39,28 +38,32 @@ public class ServerChatRecord extends ChatRecord {
                 file.createNewFile();
             }
             messages = new ArrayList<>();
-            try {
-                reader = new ObjectInputStream(new FileInputStream(filename));
-                while (reader.available() > 0) {
-                    messages.add(Message.readMsg(reader));
-                }
-                reader.close();
-            } catch (EOFException e) {
-
+            raf = new RandomAccessFile(filename,"rw");
+            while (true) {
+                messages.add(Message.readMsg(raf));
             }
-            writer = new ObjectOutputStream(new FileOutputStream(filename,true));
         } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
+            System.out.println("read done ...");
         }
     }
 
     public void writeRecord() {
+        try {
+            raf.setLength(0);
+            raf.seek(0);
+        } catch (IOException e){
+            e.printStackTrace();
+            return;
+        }
         for (Message msg : messages) {
-            Message.writeMsg(msg, writer);
+            Message.writeMsg(msg, raf);
+        }
+        try {
+            raf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
-
 
     public List<Message> getMessages() {
         return messages;

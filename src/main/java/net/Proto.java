@@ -1,6 +1,5 @@
 package net;
 
-import msg.ClientChatRecord;
 
 public class Proto {
 
@@ -23,13 +22,10 @@ public class Proto {
 
     // 服务端响应客户端
     public static final int RespForAllUsers = 5; // user | user | ...
-    public static final int RespForSaveMsg = 6; //
 
     public static final int RespForLogin = 7;
     // 数据 : 一个boolean + 一个string ，如果boolean是true，string null
     // 数据 : 一个boolean + 一个string ，如果boolean是false，string 不是null
-
-    public static final int SendForMsg = 1012; // 服务端向客户端发送积压的消息, msg | msg | msg
 
 
     // 客户端和客户端发消息
@@ -57,6 +53,11 @@ public class Proto {
 
     public static final int BacklogMsg = 19;
 
+    // 服务端发给客户端
+    public static final int SynGroupMessages = 20;
+
+    public static final int RespForAllGroups = 21;
+
 
     public static Proto getAskForSaveMsg( String message) {
         // senderId | receiverId | msg | time
@@ -66,14 +67,9 @@ public class Proto {
     }
 
     public static Proto getRespForAllUsers(String usersStr) {
+        // user1 | user2 | ...
         Proto proto = new Proto(usersStr);
         proto.type = RespForAllUsers;
-        return proto;
-    }
-
-    public static Proto getRespForSaveMsg (String messageInfo) {
-        Proto proto = new Proto(messageInfo);
-        proto.type = RespForSaveMsg;
         return proto;
     }
 
@@ -141,13 +137,14 @@ public class Proto {
     }
 
     public static Proto getNewGroupMessage(String message){
-    //message: senderId | groupName | msg
+    //message: senderId | groupName | msg | time
         Proto p = new Proto(message);
         p.type = NewGroupMessage;
         return p;
     }
 
     public static Proto getBacklogMsg (String message) {
+        // msg1 | msg2 | msg3 ...
         Proto p = new Proto(message);
         p.type = BacklogMsg;
         return p;
@@ -162,8 +159,24 @@ public class Proto {
     }
 
     public static Proto getPubSynMsg (String dataStr) {
+        // versionId | receiverId | msg1 | msg2 ...
         Proto p = new Proto(dataStr);
         p.type = PubSynMsg;
+        return p;
+    }
+
+    public static Proto getSynGroupMessages (String dataStr) {
+        // groupName | msg1 | msg2 | msg3
+        Proto p = new Proto(dataStr);
+        p.type = SynGroupMessages;
+        return p;
+    }
+
+    public static Proto getRespForAllGroups (String allGroups) {
+        //  group1 | group2 | group3 ...
+        // groupId | name | level | 1,2,3,4,5...
+        Proto p = new Proto(allGroups);
+        p.type = RespForAllGroups;
         return p;
     }
 

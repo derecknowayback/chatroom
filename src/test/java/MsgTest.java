@@ -1,4 +1,3 @@
-import java.io.IOException;
 import java.util.List;
 import msg.Message;
 import msg.ServerChatRecord;
@@ -9,7 +8,7 @@ public class MsgTest {
 
 
     @Test
-    public void testServerRecord() throws IOException {
+    public void testServerRecord()  {
         ServerChatRecord record = ServerChatRecord.getServerChatRecord();
         Message msg1 = new Message(1, 2, "Hello", "2020-01-01");
         record.addMessages(msg1);

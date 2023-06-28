@@ -18,22 +18,15 @@ public class Group {
         this.name = name;
         groupMember = users;
         this.level = level;
-        switch (level) {
-            case 1 : this.limit = LEVEL1_LIMIT; break;
-            case 2 : this.limit = LEVEL2_LIMIT; break;
-            case 3 : this.limit = LEVEL3_LIMIT; break;
-        }
+        limit = getLimitByLevel(level);
     }
 
     public Group(int id,String name,int level,List<Integer> users){
         this.groupID = id;
         this.name = name;
         groupMember = users;
-        switch (level) {
-            case 1 : this.limit = LEVEL1_LIMIT; break;
-            case 2 : this.limit = LEVEL2_LIMIT; break;
-            case 3 : this.limit = LEVEL3_LIMIT; break;
-        }
+        limit = getLimitByLevel(level);
+        this.level = level;
     }
 
     public static int getLimitByLevel(int level) {
@@ -45,6 +38,14 @@ public class Group {
         return -1;
     }
 
+    public static int getLevelByLimit(int limit) {
+        switch (limit) {
+            case LEVEL1_LIMIT : return 1;
+            case LEVEL2_LIMIT : return 2;
+            case LEVEL3_LIMIT : return 3;
+        }
+        return -1;
+    }
 
 
     public boolean addMember (int id) {
@@ -63,9 +64,13 @@ public class Group {
         return groupID;
     }
 
+    public String getName() {
+        return name;
+    }
+
     @Override
     public String toString() {
-        return null;
+        return groupID + "|" + askCreateStr();
     }
 
 
