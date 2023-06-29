@@ -78,7 +78,8 @@ public class GroupChatRecord extends ChatRecord{
 
     @Override
     public void addMessages(Message message) {
-        messages.add(message);
+        if(!messages.contains(message))
+            messages.add(message);
     }
 
 }

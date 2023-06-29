@@ -181,8 +181,7 @@ public class Client implements Runnable {
                             if (user != null)
                                 allUsers.put(user.getName(), user);
                         }
-                        break;
-                    }
+                    }break;
                     case Proto.RespForLogin: {
                         System.out.println("收到了 RespForLogin " + messageString);
                         //boolean和string之间用‘,’分隔
@@ -195,8 +194,7 @@ public class Client implements Runnable {
                             isLogin = false;
                             loginFailedMsg = index[1];
                         }
-                        break;
-                    }
+                    } break;
                     case Proto.PubSynMsg: {
                         System.out.println("收到了 PubSynMsg " + messageString);
                         String[] blocks = messageString.split("\\|");
@@ -256,11 +254,27 @@ public class Client implements Runnable {
                             if (temp.length() == 0) continue;
                             Message msg = Message.marshall(temp);
                             int senderId = msg.getSenderId();
+                            // 如果我们之间是好友的话，直接走正常路径就好
                             ClientChatRecord record = getRecordById(senderId);
                             record.addMessages(msg);
+                            // backLogMsg之中也可能有MakeFriend和RespMakeFriend的消息
+                            String senderName = getUserNameById(senderId);
+                            if (!isFriend(senderName)) {
+                                // 不是好友 + record的size应该是
+                                System.out.println("在 BacklogMsg 收到了 "+senderId+"的 MakeFriend相关的信息" + msg);
+                                boolean iSentFirst = record.didISentFirst();
+                                // 如果是我主动的话，那么这个msg是一个resp
+                                if (iSentFirst) {
+                                    if (msg.getContent().equals("Yes")) {
+                                        friends.add(senderId);
+                                    }
+                                }
+                                // 如果不是我主动的话，这个msg是一个req, 留给前端去处理了
+                            }
                         }
                     } break;
                     case Proto.SynGroupMessages: {
+                        System.out.println("收到了 SynGroupMessages:" + messageString);
                         String[] split = messageString.split("\\|");
                         GroupChatRecord record = groupChatRecordMap.get(split[0]);
                         Group group = allGroups.get(split[0]);
@@ -276,10 +290,12 @@ public class Client implements Runnable {
                         }
                         for (int i = 1; i < split.length; i++) {
                             Message marshall = Message.marshall(split[i]);
+                            System.out.println("marshall msg   " + marshall);
                             record.addMessages(marshall);
                         }
                     } break;
                     case Proto.RespForAllGroups: {
+                        System.out.println("收到了 RespForAllGroups:" + messageString);
                         String[] split = messageString.split("\\|");
                         //  group1 | group2 | group3 ...
                         // groupId | name | level | 1,2,3,4,5...
@@ -287,7 +303,8 @@ public class Client implements Runnable {
                             String[] idsStr = split[i + 3].split(",");
                             List<Integer> ids = new ArrayList<>();
                             for (int j = 0; j < idsStr.length; j++) ids.add(Integer.parseInt(idsStr[j]));
-                            Group group = new Group(Integer.parseInt(split[i]), split[i + 1], Integer.parseInt(split[i + 2]), ids);
+                            Group group = new Group(Integer.parseInt(split[i]), split[i + 1], Group.getLevelByLimit(Integer.parseInt(split[i + 2])), ids);
+                            System.out.println("resolved:  "+group);
                             allGroups.put(group.getName(),group);
                         }
                     } break;
@@ -299,11 +316,19 @@ public class Client implements Runnable {
     }
 
 
+    public void synRecord () {
+        askForSynChatRecord();
+        for (String name : chatRecordMap.keySet()) {
+            chatRecordMap.get(name).writeRecord();
+        }
+    }
+
     public ClientChatRecord getRecordById(int senderId) {
         ClientChatRecord record = chatRecordMap.get(getUserNameById(senderId));
         if (record == null) {
             try {
                 record = new ClientChatRecord(senderId);
+//                System.out.println(senderId + "has " +record.getMessages().size() + " records with you");
                 chatRecordMap.put(getUserNameById(senderId),record);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -332,6 +357,7 @@ public class Client implements Runnable {
         User user = allUsers.get(name);
         Proto p;
         StringBuilder sb = new StringBuilder();
+        Date date = new Date();
         if (isRespForMakeFriend) {
             sb.append(getSelfId()).append("|").append(user.getId()).append("|");
             if(msg.equals("Yes"))
@@ -352,7 +378,7 @@ public class Client implements Runnable {
         } else {
             // 如果是好友的话:
             if (friends.contains(user.getId())) {
-                sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(new Date());
+                sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(date);
                 if (user.isOnline()){
                     p = Proto.getNewMessage(msg);
                 }
@@ -360,7 +386,7 @@ public class Client implements Runnable {
                     p = Proto.getAskForSaveMsg(sb.toString());
                 }
             } else {
-                sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(new Date());
+                sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(date);
                 p = Proto.getAskForMakeFriend(sb.toString());
             }
             byte[] payload = p.toString().getBytes(StandardCharsets.UTF_8);
@@ -385,6 +411,7 @@ public class Client implements Runnable {
         }
         StringBuilder sb = new StringBuilder();
         sb.append(getSelfId()).append("|").append(name).append("|").append(msg).append("|").append(new Date());
+        System.out.println("Send Group Msg   " + sb);
         Proto groupMessage = Proto.getNewGroupMessage(sb.toString());
         byte[] payload = groupMessage.toString().getBytes(StandardCharsets.UTF_8);
         DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
@@ -393,6 +420,24 @@ public class Client implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void askToLogOut () {
+        Proto groupMessage = Proto.getAskForLogout(String.valueOf(getSelfId()));
+        byte[] payload = groupMessage.toString().getBytes(StandardCharsets.UTF_8);
+        DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
+        try {
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void addSelfMessageToRecord(String msg,String receiver) {
+        User user = allUsers.get(receiver);
+        ClientChatRecord record = getRecordById(user.getId());
+        Message message = new Message(getSelfId(), user.getId(), msg, new Date().toString());
+        record.addMessages(message);
     }
 
 
@@ -453,7 +498,10 @@ public class Client implements Runnable {
 
     public int getUserIdByName (String name) {
         User user = allUsers.get(name);
-        if (user == null) return -1;
+        if (user == null) {
+//            System.out.println("There is no user named : " + name);
+            return -1;
+        }
         return user.getId();
     }
 
@@ -515,11 +563,11 @@ public class Client implements Runnable {
     // 做好了
     public String askToLeaveGroup(String groupName) {
         Group group = allGroups.get(groupName);
-        if (group.isMember(getSelfId())) {
+        if (!group.isMember(getSelfId())) {
             return "You are not in the group";
         }
         StringBuilder msg = new StringBuilder();
-        msg.append(getSelfId()).append("|").append(getGroupIdByName(groupName));
+        msg.append(getSelfId()).append("|").append(groupName);
         Proto leave = Proto.getNotifyToLeave(msg.toString());
         byte[] payload = leave.toString().getBytes(StandardCharsets.UTF_8);
         DatagramPacket packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
@@ -559,7 +607,9 @@ public class Client implements Runnable {
         ClientChatRecord chatRecord = chatRecordMap.get(username);
         if (chatRecord == null) {
             try {
-                chatRecord = new ClientChatRecord(getUserIdByName(username));
+                int id = getUserIdByName(username);
+                if (id == -1) return null;
+                chatRecord = new ClientChatRecord(id);
                 chatRecordMap.put(username,chatRecord);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -567,6 +617,22 @@ public class Client implements Runnable {
             }
         }
         return chatRecord.getMessages();
+    }
+
+    public boolean didISentFirst(String username) {
+        ClientChatRecord chatRecord = chatRecordMap.get(username);
+        if (chatRecord == null) {
+            try {
+                int id = getUserIdByName(username);
+                if (id == -1) return false;
+                chatRecord = new ClientChatRecord(id);
+                chatRecordMap.put(username,chatRecord);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        return chatRecord.didISentFirst();
     }
 
     public List<Message> getGroupRecordByName (String groupName) {

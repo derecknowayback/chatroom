@@ -41,7 +41,7 @@ public class ClientChatRecord extends ChatRecord {
         raf = new RandomAccessFile(fileName,"rw");
         versionId = 0;
         try {
-            versionId = raf.readInt();
+            versionId = raf.readInt() + 1;
             while (true)  {
                 Message message = Message.readMsg(raf);
                 messages.add(message);
@@ -78,7 +78,8 @@ public class ClientChatRecord extends ChatRecord {
 
     @Override
     public void addMessages(Message message) {
-        messages.add(message);
+        if(!messages.contains(message))
+            messages.add(message);
     }
 
     public String getData() {
@@ -103,11 +104,18 @@ public class ClientChatRecord extends ChatRecord {
     }
 
     public void clear() {
+        messages.clear();
         try {
           raf.setLength(0);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean didISentFirst() {
+        if (messages.isEmpty()) return false;
+        Message message = messages.get(0);
+        return message.getSenderId() != userId;
     }
 
 }

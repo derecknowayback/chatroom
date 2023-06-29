@@ -96,7 +96,7 @@ public class ClientUi implements Runnable{
 	public int getY () {
 		// 一个50,
 		// 0 51 102
-		return (myButMap.size() - 1) * 50 + (myButMap.size() - 1);
+		return myButMap.size() * 51;
 	}
 
 	public void refreshButtons() {
@@ -104,6 +104,7 @@ public class ClientUi implements Runnable{
 		HashMap<String, User> users = client.getAllUsers();
 		for (String groupName : allGroups.keySet()) {
 			if (!myButMap.containsKey(groupName)) {
+				System.out.println(groupName + "  button is created");
 				MyBut but = new MyBut(groupName,true);
 				but.setBounds(0,getY(), 170, 50);
 				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
@@ -113,8 +114,9 @@ public class ClientUi implements Runnable{
 				myButMap.put(groupName,but);
 			}
 		}
+		String selfName = client.getSelf().getName();
 		for (String userName : users.keySet()) {
-			if (!myButMap.containsKey(userName)) {
+			if (!myButMap.containsKey(userName) && !userName.equals(selfName)) {
 				MyBut but = new MyBut(userName,false);
 				but.setBounds(0,getY(), 170, 50);
 				but.setFont(new Font("Microsoft JhengHei Light", Font.PLAIN, 20));
@@ -131,6 +133,8 @@ public class ClientUi implements Runnable{
 	public void run() {
 		while (true) {
 			refreshButtons();
+			if (talkingTo != null)
+				refreshDocument();
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -147,30 +151,36 @@ public class ClientUi implements Runnable{
 			this.isGroup = isGroup;
 			addActionListener(a -> {
 				talkingTo = this.getText();
-				Document docs = textShow.getDocument();
-				try {
-					docs.remove(0,docs.getLength());
-				} catch (BadLocationException e) {
-					throw new RuntimeException(e);
-				}
-				List<Message> messages;
-				// 如果不是群组的话
-				if (!this.isGroup) {
-					messages = client.getRecordByName(talkingTo);
-				} else {
-					messages = client.getGroupRecordByName(talkingTo);
-				}
-				int offset = 0;
-				for (Message msg : messages) {
-					String toDisplay = msg.toDisplay();
-					offset = toDisplayString(toDisplay,offset);
-				}
+				btnSend.setText("Send");
+				refreshDocument();
 			});
 		}
 
 		@Override
 		public String toString(){
 			return super.getText();
+		}
+	}
+
+	public void refreshDocument () {
+		Document docs = textShow.getDocument();
+		try {
+			docs.remove(0,docs.getLength());
+		} catch (BadLocationException e) {
+			throw new RuntimeException(e);
+		}
+		List<Message> messages = client.getRecordByName(talkingTo);
+		if (messages == null) {
+			// 如果messages为空, 那么说明talkingTo的是一个Group
+			messages = client.getGroupRecordByName(talkingTo);
+		}
+		int offset = 0;
+		for (Message msg : messages) {
+			StringBuilder toDisplay = new StringBuilder();
+			int senderId = msg.getSenderId();
+			String name = client.getUserNameById(senderId);
+			toDisplay.append(name).append("    ").append(msg.getTime()).append("\n").append(msg.getContent());
+			offset = toDisplayString(toDisplay.toString(),offset);
 		}
 	}
 
@@ -198,10 +208,25 @@ public class ClientUi implements Runnable{
 	}
 
 	private boolean isRespMakeFriend() {
+		boolean didISentFirst = client.didISentFirst(talkingTo);
 		boolean isFriend = client.isFriend(talkingTo);
-		boolean isMsgEmpty = client.getRecordByName(talkingTo).isEmpty();
-		// 不是朋友且对方发了一条消息
-		return !isFriend && !isMsgEmpty;
+		List<Message> name = client.getRecordByName(talkingTo);
+		boolean noTalkBefore = (name == null) || (name.isEmpty());
+		return !isFriend && !noTalkBefore && !didISentFirst;
+//		boolean isFriend = client.isFriend(talkingTo);
+//		List<Message> records = client.getRecordByName(talkingTo);
+//		if (records == null) return false;
+//		int selfCnt = 0, otherCnt = 0;
+//		for (int i = 0; i < records.size(); i++) {
+//			Message message = records.get(i);
+//			if (message.getSenderId() == client.getSelfId())
+//				selfCnt ++;
+//			else
+//				otherCnt ++;
+//		}
+//		boolean isOne = selfCnt == 0 && otherCnt > 0;
+//		// 不是朋友且对方发了一条消息
+//		return !isFriend && isOne;
 	}
 
 	// 构造方法
@@ -315,23 +340,45 @@ public class ClientUi implements Runnable{
 			String text = txtMsg.getText();
 			switch (btnSend.getText()) {
 				case BtnTextSend : {
-					// todo 判断这是不是一个群 ?
+					// 判断这是不是一个群 ?
 					boolean isGroup = myButMap.get(talkingTo).isGroup;
 					try {
-						boolean isResp4Friend = isRespMakeFriend();
 						if (!isGroup) {
+							boolean isResp4Friend = isRespMakeFriend();
 							if (isResp4Friend) {
 								if ("Yes".equals(text)) {
 									this.client.addFriend(talkingTo); // 如果我同意了, 加入到好友列表
+									System.out.println("You approve " + talkingTo + " to be your friend");
 								} else {
 									this.client.clearRecord(talkingTo); // 如果我不同意，清除所有的消息
+									System.out.println("You reject " + talkingTo + " to be your friend");
 								}
 								this.client.sendMsgToP(text,talkingTo,true);
+								this.client.addSelfMessageToRecord(text,talkingTo);
 							} else {
-								this.client.sendMsgToP(text,talkingTo,false); // 好友申请和普通消息一样处理
+								if (this.client.isFriend(talkingTo)) {
+									System.out.println(talkingTo+"  is FRIEND");
+									this.client.sendMsgToP(text,talkingTo,false); // 好友申请和普通消息一样处理
+								} else {
+									System.out.println(talkingTo+"  is NOT FRIEND");
+									List<Message> msgs = this.client.getRecordByName(talkingTo);
+									int selfCnt = 0;
+									for (int i = 0; i < msgs.size(); i++) {
+										Message message = msgs.get(i);
+										if (message.getSenderId() == this.client.getSelfId())
+											selfCnt ++;
+									}
+									if (selfCnt <= msgs.size()){
+										// 如果对面有响应且我们还不是朋友，说明我们被拒绝了。clear
+										this.client.clearRecord(talkingTo);
+									}
+									this.client.sendMsgToP(text,talkingTo,false); // 好友申请和普通消息一样处理
+								}
+								this.client.addSelfMessageToRecord(text,talkingTo);
 							}
 						} else {
 							if (this.client.isMember(talkingTo)) {
+								System.out.println("You are in the group");
 								this.client.sendMsgToG(text,talkingTo);
 							} else {
 								truncateAndDisplay("You are not in the group");
@@ -342,22 +389,26 @@ public class ClientUi implements Runnable{
 					}
 				} break;
 				case BtnTextCreate: {
-					String[] split = text.split("\n");
-					// 第一行GroupName, 第二行level, 第三行是你要邀请的用户名
+					String[] split = text.split("\\|");
+					System.out.println("GroupName " + split[0]);
+					System.out.println("level " + split[1]);
+					System.out.println("users  " + split[2]);
+					// GroupName | level | 你要邀请的用户名
 					List<String> usernames = Arrays.asList(split[2].split(","));
-					String errMsg = client.askForCreateGroup(split[0], Integer.parseInt(split[1]),usernames);
+					String errMsg = this.client.askForCreateGroup(split[0], Integer.parseInt(split[1]),usernames);
 					if(errMsg != null && errMsg.length() != 0)
 						truncateAndDisplay(errMsg);
 				} break;
 				case BtnTextInvite : {
 					String[] split = text.split(",");
 					List<String> usernames = Arrays.asList(split);
-					String errMsg = client.askForJoinGroup(talkingTo, usernames);
+					String errMsg = this.client.askForJoinGroup(talkingTo, usernames);
 					if(errMsg != null && errMsg.length() != 0)
 						truncateAndDisplay(errMsg);
 				} break;
 				case BtnTextLeave: {
-					client.askToLeaveGroup(talkingTo);
+					System.out.println("You are ready to leave " + talkingTo);
+					this.client.askToLeaveGroup(talkingTo);
 				} break;
 			}
 		});
@@ -369,11 +420,23 @@ public class ClientUi implements Runnable{
 		frame.addWindowListener(new WindowAdapter() {
 				@Override
 				public void windowClosing(WindowEvent e) {
-					// todo 等待完善
-					System.out.println("on close///");
+					actionOnExit();
 				}
 			}
 		);
 	}
+
+	public void actionOnExit() {
+		System.out.println("Exit ~~~");
+		client.synRecord();
+		client.askToLogOut();
+		try {
+			client.writeFriendRecord();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.exit(0);
+	}
+
 
 }

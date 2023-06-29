@@ -87,8 +87,12 @@ public class User {
 
 	@Override
 	public String toString() {
-		String ipStr = ip.toString().substring(1); // 去掉第一个 /
-		return  id + "," + name + "," + isOnline + "," + ipStr;
+		if (ip != null) {
+			String ipStr = ip.toString().substring(1); // 去掉第一个 /
+			return  id + "," + name + "," + isOnline + "," + ipStr;
+		} else {
+			return  id + "," + name + "," + isOnline + "," + ip;
+		}
 	}
 
 	public String loginOrRegisterStr() {

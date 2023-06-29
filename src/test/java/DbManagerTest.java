@@ -110,7 +110,7 @@ public class DbManagerTest {
     @Test
     public void testGetAllGroups() {
         List<Group> groups = DBManager.getAllGroups();
-        Assert.assertEquals(groups.size(),3);
+        Assert.assertEquals(groups.size(),4);
         for (int i = 0; i < groups.size(); i++) {
             System.out.println(groups.get(i));
         }

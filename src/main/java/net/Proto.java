@@ -11,17 +11,17 @@ public class Proto {
 
 
     // 客户端请求服务端
-    public static final int AskForSaveMsg= 2;
+    public static final int AskForSaveMsg= 1;
 
-    public static final int AskForRegister = 3;
-    public static final int AskForLogin = 4;
+    public static final int AskForRegister = 2;
+    public static final int AskForLogin = 3;
 
-    public static final int SynMsg = 100;
+    public static final int SynMsg = 4;
 
-    public static final int PubSynMsg = 120;
+    public static final int PubSynMsg = 5;
 
     // 服务端响应客户端
-    public static final int RespForAllUsers = 5; // user | user | ...
+    public static final int RespForAllUsers = 6; // user | user | ...
 
     public static final int RespForLogin = 7;
     // 数据 : 一个boolean + 一个string ，如果boolean是true，string null
@@ -41,23 +41,31 @@ public class Proto {
     public static final int AskForNewGroup = 11;
 
     //加入群聊
-    public static final int AskToJoinGroup = 13;
+    public static final int AskToJoinGroup = 12;
 
 
     //离开群聊
-    public static final int AskToLeave = 15;
+    public static final int AskToLeave = 13;
 
     //发送群消息
-    public static final int NewGroupMessage = 17;
+    public static final int NewGroupMessage = 14;
 
 
-    public static final int BacklogMsg = 19;
+    public static final int BacklogMsg = 15;
 
     // 服务端发给客户端
-    public static final int SynGroupMessages = 20;
+    public static final int SynGroupMessages = 16;
 
-    public static final int RespForAllGroups = 21;
+    public static final int RespForAllGroups = 17;
 
+    public static final int AskToLogOut = 18;
+
+    public static Proto getAskForLogout (String userId) {
+        // id
+        Proto p = new Proto(userId);
+        p.type = AskToLogOut;
+        return p;
+    }
 
     public static Proto getAskForSaveMsg( String message) {
         // senderId | receiverId | msg | time

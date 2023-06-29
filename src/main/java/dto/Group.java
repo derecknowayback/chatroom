@@ -57,7 +57,7 @@ public class Group {
     }
 
     public void removeUser (int userId) {
-        groupMember.remove(userId);
+        groupMember.remove((Integer) userId);
     }
 
     public int getGroupID() {
