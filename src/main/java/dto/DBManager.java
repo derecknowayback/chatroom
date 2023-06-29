@@ -2,7 +2,6 @@ package dto;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -25,10 +24,6 @@ public class DBManager {
     private static final String loginFailedPrefix = "false" + ",";
 
     private static final String loginSuccessPrefix = "true" + ",";
-
-    public static void main(String[] args) {
-
-    }
 
     //静态代码块
     static {
@@ -229,40 +224,46 @@ public class DBManager {
 
 
 
-    public static boolean addUserToGroup(int groupid, int userId)  {
-        // 查询原来的群组成员列表
-        String selectSql = "SELECT * FROM tb_group where groupID = '" + groupid + "'";
-        PreparedStatement selectStmt = null;
+    public static boolean addUserToGroup(int userId, int groupId)  {
+        // 查询group表，获取当前group的成员列表和限制人数
+        String query = "SELECT * FROM tb_group where groupID = '" + groupId + "'";
+        PreparedStatement stmt = null;
         ResultSet rs = null;
         PreparedStatement updateStmt = null;
         try {
-            selectStmt = connection.prepareStatement(selectSql);
-            rs = selectStmt.executeQuery();
-            if (!rs.next()) {
-                throw new SQLException("Group not found");
-            }
-            String oldMemberStr = rs.getString("groupMember");
-            String[] oldMemberIDs = oldMemberStr.split(",");
-            // 检查用户是否已经在群组中
-            for (String memberID : oldMemberIDs) {
-                if (memberID.equals(String.valueOf(userId))) {
-                    return true; // 用户已经在群组中，无需添加
+            stmt = connection.prepareStatement(query);
+            rs = stmt.executeQuery();
+            if (rs.next()) {
+                int limit = rs.getInt("limit");
+                String groupMember = rs.getString("groupMember");
+                String[] memberIds = groupMember.split(",");
+                int currentSize = memberIds.length;
+                if (currentSize < limit) {
+                    // 添加新用户的id到groupMember中
+                    String newGroupMember = groupMember + "," + userId;
+                    String updateQuery = "UPDATE tb_group SET groupMember=? WHERE groupID=?";
+                    updateStmt = connection.prepareStatement(updateQuery);
+                    updateStmt.setString(1, newGroupMember);
+                    updateStmt.setInt(2, groupId);
+                    updateStmt.executeUpdate();
+                    return true;
+                } else {
+                    // group已满，无法添加新用户
+                    return false;
                 }
+            } else {
+                // 没有找到对应的group
+                return false;
             }
-            // 添加用户到群组
-            String newMemberStr = oldMemberStr + "," + userId;
-            String updateSql = "UPDATE tb_group SET groupMember = ? WHERE groupID = '" + groupid + "'";
-            updateStmt = connection.prepareStatement(updateSql);
-            updateStmt.setString(1, newMemberStr);
-            return updateStmt.executeUpdate() > 0;
-        } catch (SQLException e){
+        } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         } finally {
-            closeRsAndStatement(rs,selectStmt);
+            closeRsAndStatement(rs,stmt);
             closeRsAndStatement(null,updateStmt);
         }
-        return false;
     }
+
 
 
     public static boolean removeUserFromGroup(int groupID, int userId) {
@@ -421,7 +422,7 @@ public class DBManager {
                 }
 
                 // 构造 Group 对象并添加到集合中
-                Group group = new Group(groupID, name, limit, groupMember);
+                Group group = new Group(groupID, name, Group.getLevelByLimit(limit), groupMember);
                 groups.add(group);
             }
             // 返回 Group 对象集合

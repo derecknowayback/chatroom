@@ -49,10 +49,12 @@ public class Group {
 
 
     public boolean addMember (int id) {
+        System.out.println("size " + groupMember.size() + "   limit" + limit);
         if (groupMember.size() >= limit) {
             return false;
         }
-        groupMember.add(id);
+        if (!groupMember.contains(id))
+            groupMember.add(id);
         return true;
     }
 

@@ -21,12 +21,6 @@ import msg.Message;
 
 public class Client implements Runnable {
 
-    public static void main(String[] args) throws IOException {
-        Client client = new Client();
-        Thread thread = new Thread(client);
-        thread.start();
-    }
-
     public static final int CLIENT_PORT = 8800; // 定义固定端口号
 
     InetAddress serverIP;
@@ -64,7 +58,9 @@ public class Client implements Runnable {
         try {
             int num = raf.readInt();
             for (int i = 0; i < num; i++) {
-                friends.add(raf.readInt());
+                int id = raf.readInt();
+                System.out.println("Friend " + id);
+                friends.add(id);
             }
         } catch (IOException e){
             System.out.println("read friend ...");
@@ -201,8 +197,11 @@ public class Client implements Runnable {
                         int versionId = Integer.parseInt(blocks[0]);
                         int receiverId = Integer.parseInt(blocks[1]);
                         List<Message> msgs = new ArrayList<>();
-                        for (int i = 2; i < blocks.length; i++)
-                            msgs.add(Message.marshall(blocks[i]));
+                        for (int i = 2; i < blocks.length; i++) {
+                            Message marshall = Message.marshall(blocks[i]);
+                            System.out.println(marshall);
+                            msgs.add(marshall);
+                        }
                         ClientChatRecord record = getRecordById(receiverId);
                         record.toReplace(versionId,msgs);
                     }break;
@@ -370,6 +369,7 @@ public class Client implements Runnable {
             // 判断该往哪里发
             DatagramPacket packet ;
             if (user.isOnline()) {
+                System.out.println("将要发往: " + user.getIp());
                 packet = new DatagramPacket(payload, 0, payload.length, user.getIp(), CLIENT_PORT);
             } else {
                 packet = new DatagramPacket(payload, 0, payload.length, serverIP, serverPort);
@@ -380,7 +380,7 @@ public class Client implements Runnable {
             if (friends.contains(user.getId())) {
                 sb.append(getSelfId()).append("|").append(user.getId()).append("|").append(msg).append("|").append(date);
                 if (user.isOnline()){
-                    p = Proto.getNewMessage(msg);
+                    p = Proto.getNewMessage(sb.toString());
                 }
                 else{
                     p = Proto.getAskForSaveMsg(sb.toString());
@@ -433,11 +433,24 @@ public class Client implements Runnable {
         }
     }
 
-    public void addSelfMessageToRecord(String msg,String receiver) {
-        User user = allUsers.get(receiver);
-        ClientChatRecord record = getRecordById(user.getId());
-        Message message = new Message(getSelfId(), user.getId(), msg, new Date().toString());
-        record.addMessages(message);
+    public void addSelfMessageToRecord(String msg,String receiver,boolean isGroup) {
+        if (!isGroup) {
+            User user = allUsers.get(receiver);
+            ClientChatRecord record = getRecordById(user.getId());
+            Message message = new Message(getSelfId(), user.getId(), msg, new Date().toString());
+            record.addMessages(message);
+        } else {
+            GroupChatRecord record = groupChatRecordMap.get(receiver);
+            if (record == null) {
+                try {
+                    record = new GroupChatRecord(allGroups.get(receiver).getGroupID());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            Message message = new Message(getSelfId(), 0, msg, new Date().toString());
+            record.addMessages(message);
+        }
     }
 
 
@@ -537,11 +550,12 @@ public class Client implements Runnable {
     // 做好了
     public String askForJoinGroup(String groupName,List<String> usernames) {
         StringBuilder errMsg = new StringBuilder(), toInvite = new StringBuilder();
-        toInvite.append(getGroupIdByName(groupName)).append("|");
+        toInvite.append(groupName).append("|");
         boolean isFirst = true;
         for (int i = 0; i < usernames.size(); i++) {
             User user = allUsers.get(usernames.get(i));
             if (! isFriend(user)) {
+                System.out.println(user.getName() + "  NOT YOUR FRIEND");
                 errMsg.append(user.getName()).append(" is not your friend, you can't invite he/she.\n");
             } else {
                 if (!isFirst) toInvite.append(",");

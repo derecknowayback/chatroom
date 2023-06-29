@@ -4,17 +4,14 @@ import dto.DBManager;
 import dto.Group;
 import dto.User;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,6 +53,7 @@ public class Server implements Runnable {
         List<Group> groups = DBManager.getAllGroups();
         for (int i = 0; i < groups.size(); i++) {
             Group group = groups.get(i);
+            System.out.println(group);
             groupHashMap.put(group.getName(),group);
         }
     }
@@ -122,7 +120,9 @@ public class Server implements Runnable {
                         String[] idStrs = split[1].split(",");
                         for (String str : idStrs){
                             int id = Integer.parseInt(str);
-                            joinGroup(split[0],id);
+                            System.out.println(id +" join " + split[0]);
+                            boolean b = joinGroup(split[0], id);
+                            System.out.println("Join res" + b);
                             Group group = groupHashMap.get(split[0]);
                             group.addMember(id);
                             broadcastGroupsInfo();
@@ -162,6 +162,7 @@ public class Server implements Runnable {
                         User user = users.get(userId);
                         user.setOnline(false);
                         LoginStatus.removeUser(userId);
+                        broadcastAllUsers();
                     } break;
                 }
             } catch (Exception e) {
@@ -184,6 +185,7 @@ public class Server implements Runnable {
         StringBuilder sb = new StringBuilder();
         for (String name : groupHashMap.keySet()) {
             Group group = groupHashMap.get(name);
+            System.out.println("pub group " + group);
             sb.append(group).append("|");
         }
         Proto groups = Proto.getRespForAllGroups(sb.toString());
@@ -244,13 +246,16 @@ public class Server implements Runnable {
 
     // 接收登录请求，添加用户到登录集合中, 顺便发送所有积压的请求
     // PS: 积压的请求发送完之后需要从文件中删除
-    public void acceptUser(String name, String password,InetAddress inetAddress) {
+    public void acceptUser(String name, String password,InetAddress inetAddress) throws UnknownHostException {
         String msg = DBManager.checkUser(name, password);
         String[] split = msg.split(",");
         if (split[0].equals("true")) {
             // 登录成功
             int userId = Integer.parseInt(split[1]);
             // 添加到登录用户中
+            if (name.equals("tim") || name.equals("dim")) {
+                inetAddress = InetAddress.getByName("10.28.245.221");
+            }
             User user = new User(Integer.parseInt(split[1]), name, inetAddress, true);
             LoginStatus.addUser(user);
             users.put(user.getId(),user);

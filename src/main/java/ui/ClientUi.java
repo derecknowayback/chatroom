@@ -354,7 +354,7 @@ public class ClientUi implements Runnable{
 									System.out.println("You reject " + talkingTo + " to be your friend");
 								}
 								this.client.sendMsgToP(text,talkingTo,true);
-								this.client.addSelfMessageToRecord(text,talkingTo);
+								this.client.addSelfMessageToRecord(text,talkingTo,false);
 							} else {
 								if (this.client.isFriend(talkingTo)) {
 									System.out.println(talkingTo+"  is FRIEND");
@@ -374,7 +374,7 @@ public class ClientUi implements Runnable{
 									}
 									this.client.sendMsgToP(text,talkingTo,false); // 好友申请和普通消息一样处理
 								}
-								this.client.addSelfMessageToRecord(text,talkingTo);
+								this.client.addSelfMessageToRecord(text,talkingTo,false);
 							}
 						} else {
 							if (this.client.isMember(talkingTo)) {
@@ -383,6 +383,7 @@ public class ClientUi implements Runnable{
 							} else {
 								truncateAndDisplay("You are not in the group");
 							}
+							this.client.addSelfMessageToRecord(text,talkingTo,true);
 						}
 					} catch (IOException ex) {
 						System.out.println("发送消息失败: " + ex);
@@ -402,6 +403,7 @@ public class ClientUi implements Runnable{
 				case BtnTextInvite : {
 					String[] split = text.split(",");
 					List<String> usernames = Arrays.asList(split);
+					System.out.println("Your invitation " +usernames);
 					String errMsg = this.client.askForJoinGroup(talkingTo, usernames);
 					if(errMsg != null && errMsg.length() != 0)
 						truncateAndDisplay(errMsg);
