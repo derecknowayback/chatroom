@@ -302,7 +302,7 @@ public class Client implements Runnable {
                             String[] idsStr = split[i + 3].split(",");
                             List<Integer> ids = new ArrayList<>();
                             for (int j = 0; j < idsStr.length; j++) ids.add(Integer.parseInt(idsStr[j]));
-                            Group group = new Group(Integer.parseInt(split[i]), split[i + 1], Group.getLevelByLimit(Integer.parseInt(split[i + 2])), ids);
+                            Group group = new Group(Integer.parseInt(split[i]), split[i + 1], Integer.parseInt(split[i+2]), ids);
                             System.out.println("resolved:  "+group);
                             allGroups.put(group.getName(),group);
                         }

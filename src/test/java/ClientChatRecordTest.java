@@ -7,22 +7,6 @@ import org.junit.Test;
 
 public class ClientChatRecordTest {
 
-
-    @Test
-    public void testCreateAndRead () {
-
-    }
-
-    @Test
-    public void testWriteRecord() {
-
-    }
-
-    @Test
-    public void testGetMessages() {
-
-    }
-
     @Test
     public void testClientRecord()  {
         ClientChatRecord record = null;

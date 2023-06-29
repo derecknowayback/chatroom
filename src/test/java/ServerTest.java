@@ -10,8 +10,6 @@ import org.junit.Test;
 
 public class ServerTest {
 
-
-
 	@Test
 	public void testHandleSynMsg () throws IOException {
 		Message message = new Message(1, 2, "test data", new Date().toString());

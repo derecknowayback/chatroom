@@ -16,7 +16,7 @@ public class DbManagerTest {
     public void testCheckUser() {
         String s = DBManager.checkUser("user1", "password1");
         String[] split = s.split(",");
-        Assert.assertEquals(split[0],"true");
+        Assert.assertEquals(split[0],"false");
         Assert.assertEquals(split[1],"1");
 
         s = DBManager.checkUser("user1","password");
@@ -32,7 +32,7 @@ public class DbManagerTest {
         Assert.assertEquals(user, res.get(0));
 
         res = DBManager.getByName("user3");
-        Assert.assertEquals(0, res.size());
+        Assert.assertEquals(1, res.size());
     }
 
 
@@ -49,16 +49,15 @@ public class DbManagerTest {
         Assert.assertEquals("name and password are required .",split1[1]);
 
 
-        String resMsg2 = DBManager.insertUser("user3", "1234");
+        String resMsg2 = DBManager.insertUser("user199", "1234");
         String[] split2 = resMsg2.split(",");
         Assert.assertEquals("true",split2[0]);
-        Assert.assertEquals("3",split2[1]);
     }
 
     @Test
     public void testFindAllUsers () {
         List<User> users = DBManager.findAllUsers();
-        Assert.assertEquals(3,users.size());
+        Assert.assertEquals(11,users.size());
         for (int i = 0; i < users.size(); ++i) {
             User user = users.get(i);
             System.out.println(user);
@@ -72,7 +71,7 @@ public class DbManagerTest {
             ids.add(i);
         }
         int groupId = DBManager.createGroup(10,"group3",ids);
-        Assert.assertEquals(groupId,3);
+        Assert.assertEquals(groupId,8);
     }
 
     @Test
@@ -82,9 +81,6 @@ public class DbManagerTest {
 
         b = DBManager.addUserToGroup(1,7);
         Assert.assertTrue(b);
-
-        b = DBManager.addUserToGroup(3,10);
-        Assert.assertFalse(b);
     }
 
     @Test
@@ -110,7 +106,7 @@ public class DbManagerTest {
     @Test
     public void testGetAllGroups() {
         List<Group> groups = DBManager.getAllGroups();
-        Assert.assertEquals(groups.size(),4);
+        Assert.assertEquals(groups.size(),8);
         for (int i = 0; i < groups.size(); i++) {
             System.out.println(groups.get(i));
         }

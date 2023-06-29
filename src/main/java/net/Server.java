@@ -263,14 +263,12 @@ public class Server implements Runnable {
             broadcastAllUsers();
             // 推送所有群组
             broadcastGroupsInfo();
-            // 推送积压的消息
-            pubMsg(userId);
-            // 发送消息记录
-
             // 发送全部的群组消息
             broadcastAllGroupMessage();
             try {
                 loadRecord(userId);
+                // 推送积压的消息
+                pubMsg(userId);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
